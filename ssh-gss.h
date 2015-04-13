@@ -61,7 +61,7 @@ struct kexgss {
 	gss_name_t name;	/* Saved on first use */
 	char	*client;
 	char	*host;
-	int	deleg_creds;
+	char	*deleg_creds;
 	time_t  tgt_expiration;
 	time_t  tkt_expiration;
 };
@@ -145,7 +145,7 @@ int ssh_gssapi_get_buffer_desc(struct sshbuf *, gss_buffer_desc *);
 int sshpkt_get_buffer_desc(struct ssh *, gss_buffer_desc *);
 
 OM_uint32 ssh_gssapi_import_name(Gssctxt *, const char *);
-OM_uint32 ssh_gssapi_init_ctx(Gssctxt *, int,
+OM_uint32 ssh_gssapi_init_ctx(Gssctxt *, char *,
     gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);
 OM_uint32 ssh_gssapi_accept_ctx(Gssctxt *,
     gss_buffer_desc *, gss_buffer_desc *, OM_uint32 *);

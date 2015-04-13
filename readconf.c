@@ -1014,8 +1014,8 @@ parse_time:
 		goto parse_flag;
 
 	case oGssDelegateCreds:
-		intptr = &options->gss_deleg_creds;
-		goto parse_flag;
+		charptr = &options->gss_deleg_creds;
+		goto parse_string;
 
 	case oGssTrustDns:
 		intptr = &options->gss_trust_dns;
@@ -1922,7 +1922,7 @@ initialize_options(Options * options)
 	options->challenge_response_authentication = -1;
 	options->gss_authentication = -1;
 	options->gss_keyex = -1;
-	options->gss_deleg_creds = -1;
+	options->gss_deleg_creds = NULL;
 	options->gss_trust_dns = -1;
 	options->gss_renewal_rekey = -1;
 	options->gss_client_identity = NULL;
@@ -2079,8 +2079,6 @@ fill_default_options(Options * options)
 		options->gss_authentication = 0;
 	if (options->gss_keyex == -1)
 		options->gss_keyex = 0;
-	if (options->gss_deleg_creds == -1)
-		options->gss_deleg_creds = 0;
 	if (options->gss_trust_dns == -1)
 		options->gss_trust_dns = 0;
 	if (options->gss_renewal_rekey == -1)
@@ -2726,7 +2724,6 @@ dump_client_config(Options *o, const char *host)
 	dump_cfg_fmtint(oGatewayPorts, o->fwd_opts.gateway_ports);
 #ifdef GSSAPI
 	dump_cfg_fmtint(oGssAuthentication, o->gss_authentication);
-	dump_cfg_fmtint(oGssDelegateCreds, o->gss_deleg_creds);
 #endif /* GSSAPI */
 	dump_cfg_fmtint(oHashKnownHosts, o->hash_known_hosts);
 	dump_cfg_fmtint(oHostbasedAuthentication, o->hostbased_authentication);
@@ -2774,6 +2771,9 @@ dump_client_config(Options *o, const char *host)
 #ifdef ENABLE_PKCS11
 	dump_cfg_string(oPKCS11Provider, o->pkcs11_provider);
 #endif
+#ifdef GSSAPI
+	dump_cfg_string(oGssDelegateCreds, o->gss_deleg_creds);
+#endif /* GSSAPI */
 	dump_cfg_string(oPreferredAuthentications, o->preferred_authentications);
 	dump_cfg_string(oPubkeyAcceptedKeyTypes, o->pubkey_key_types);
 	dump_cfg_string(oRevokedHostKeys, o->revoked_host_keys);

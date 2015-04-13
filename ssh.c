@@ -575,6 +575,41 @@ set_addrinfo_port(struct addrinfo *addrs, int port)
 	}
 }
 
+static void
+update_gssapi_deleg_creds(Options *opts, const char *localuser)
+{
+    char *yes[] = { "true", "yes", NULL };
+    char *no[] = { "false", "no", NULL };
+    char **cpp;
+
+    if (opts->gss_deleg_creds == NULL)
+	    return;
+
+    for (cpp = yes; *cpp; ++cpp)
+	    if (strcasecmp(*cpp, opts->gss_deleg_creds) == 0)
+		    return;
+
+    for (cpp = no; *cpp; ++cpp) {
+	    if (strcasecmp(*cpp, opts->gss_deleg_creds) == 0) {
+		    opts->gss_deleg_creds = NULL;
+		    return;
+	    }
+    }
+
+    if (strncasecmp(opts->gss_deleg_creds, "user:", 5) == 0) {
+	    char *match = percent_expand(opts->gss_deleg_creds + 5,
+		"l", localuser, (char *)NULL);
+
+	    if (strcmp(match, opts->user) != 0)
+		    opts->gss_deleg_creds = NULL;
+	    free(match);
+	    return;
+    }
+
+    fatal("Unrecognized GSSAPIDelegateCredentials value: %s",
+	  opts->gss_deleg_creds);
+}
+
 /*
  * Main program for the ssh client.
  */
@@ -766,11 +801,11 @@ main(int ac, char **av)
 			options.forward_agent = 1;
 			break;
 		case 'k':
-			options.gss_deleg_creds = 0;
+			options.gss_deleg_creds = "no";
 			break;
 		case 'K':
 			options.gss_authentication = 1;
-			options.gss_deleg_creds = 1;
+			options.gss_deleg_creds = "yes";
 			break;
 		case 'i':
 			p = tilde_expand_filename(optarg, getuid());
@@ -1281,6 +1316,7 @@ main(int ac, char **av)
 
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
+	update_gssapi_deleg_creds(&options, pw->pw_name);
 
 	if ((md = ssh_digest_start(SSH_DIGEST_SHA1)) == NULL ||
 	    ssh_digest_update(md, thishost, strlen(thishost)) < 0 ||

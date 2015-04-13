@@ -388,7 +388,7 @@ ssh_gssapi_delete_ctx(Gssctxt **ctx)
  *	server name (from ssh_gssapi_import_name)
  */
 OM_uint32
-ssh_gssapi_init_ctx(Gssctxt *ctx, int deleg_creds, gss_buffer_desc *recv_tok,
+ssh_gssapi_init_ctx(Gssctxt *ctx, char *deleg_creds, gss_buffer_desc *recv_tok,
     gss_buffer_desc* send_tok, OM_uint32 *flags)
 {
 	int deleg_flag = 0;
