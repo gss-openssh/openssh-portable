@@ -444,6 +444,28 @@ ssh_gssapi_userok(char *user, struct passwd *pw)
 		debug("No suitable client data");
 		return 0;
 	}
+
+#ifdef HAVE_GSS_LOCALNAME
+	/*
+	 * Don't store delegated credentials when the authenticated principal's
+	 * localname (an2ln mapping) is different from the target user.
+	 */
+	if (gssapi_client.mech && gssapi_client.creds &&
+	    !options.gss_store_nonan2ln) {
+		gss_buffer_desc localname = GSS_C_EMPTY_BUFFER;
+		OM_uint32 lmaj = gss_localname(&lmin, gssapi_client.name,
+		    &gssapi_client.mech->oid, &localname);
+
+		if (lmaj != GSS_S_COMPLETE ||
+		    localname.length != strlen(user) ||
+		    strncmp(localname.value, user, localname.length) != 0) {
+			gss_release_cred(&lmin, &gssapi_client.creds);
+			gssapi_client.creds = GSS_C_NO_CREDENTIAL;
+		}
+		(void) gss_release_buffer(&lmin, &localname);
+	}
+#endif
+
 	if (gssapi_client.mech && gssapi_client.mech->userok)
 		if ((*gssapi_client.mech->userok)(&gssapi_client, user)) {
 			gssapi_client.used = 1;

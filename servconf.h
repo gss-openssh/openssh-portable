@@ -129,6 +129,7 @@ typedef struct {
 	int     gss_keyex;		/* If true, permit GSSAPI key exchange */
 	int     gss_cleanup_creds;	/* If true, destroy cred cache on logout */
 	int     gss_strict_acceptor;	/* If true, restrict the GSSAPI acceptor name */
+	int     gss_store_nonan2ln;	/* Store delegated creds of non-an2ln princs? */
 	int 	gss_store_rekey;
 	int     password_authentication;	/* If true, permit password
 						 * authentication. */

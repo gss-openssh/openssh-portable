@@ -128,6 +128,7 @@ initialize_server_options(ServerOptions *options)
 	options->gss_keyex = -1;
 	options->gss_cleanup_creds = -1;
 	options->gss_strict_acceptor = -1;
+	options->gss_store_nonan2ln = -1;
 	options->gss_store_rekey = -1;
 	options->password_authentication = -1;
 	options->kbd_interactive_authentication = -1;
@@ -368,6 +369,8 @@ fill_default_server_options(ServerOptions *options)
 		options->gss_cleanup_creds = 1;
 	if (options->gss_strict_acceptor == -1)
 		options->gss_strict_acceptor = 1;
+	if (options->gss_store_nonan2ln == -1)
+		options->gss_store_nonan2ln = 0;
 	if (options->gss_store_rekey == -1)
 		options->gss_store_rekey = 0;
 	if (options->password_authentication == -1)
@@ -551,7 +554,7 @@ typedef enum {
 	sHostKeyAlgorithms,
 	sClientAliveInterval, sClientAliveCountMax, sAuthorizedKeysFile,
 	sGssAuthentication, sGssCleanupCreds, sGssStrictAcceptor,
-	sGssKeyEx, sGssStoreRekey,
+	sGssStoreNonAn2Ln, sGssKeyEx, sGssStoreRekey,
 	sAcceptEnv, sSetEnv, sPermitTunnel,
 	sMatch, sPermitOpen, sPermitListen, sForceCommand, sChrootDirectory,
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
@@ -629,6 +632,7 @@ static struct {
 	{ "gssapicleanupcredentials", sGssCleanupCreds, SSHCFG_GLOBAL },
 	{ "gssapicleanupcreds", sGssCleanupCreds, SSHCFG_GLOBAL },
 	{ "gssapistrictacceptorcheck", sGssStrictAcceptor, SSHCFG_GLOBAL },
+	{ "gssapistorenonan2ln", sGssStoreNonAn2Ln, SSHCFG_GLOBAL },
 	{ "gssapikeyexchange", sGssKeyEx, SSHCFG_GLOBAL },
 	{ "gssapistorecredentialsonrekey", sGssStoreRekey, SSHCFG_GLOBAL },
 #else
@@ -636,6 +640,7 @@ static struct {
 	{ "gssapicleanupcredentials", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapicleanupcreds", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapistrictacceptorcheck", sUnsupported, SSHCFG_GLOBAL },
+	{ "gssapistorenonan2ln", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapikeyexchange", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapistorecredentialsonrekey", sUnsupported, SSHCFG_GLOBAL },
 #endif
@@ -1577,6 +1582,10 @@ process_server_config_line(ServerOptions *options, char *line,
 
 	case sGssStrictAcceptor:
 		intptr = &options->gss_strict_acceptor;
+		goto parse_flag;
+
+	case sGssStoreNonAn2Ln:
+		intptr = &options->gss_store_nonan2ln;
 		goto parse_flag;
 
 	case sGssStoreRekey:
@@ -2675,6 +2684,7 @@ dump_config(ServerOptions *o)
 	dump_cfg_fmtint(sGssKeyEx, o->gss_keyex);
 	dump_cfg_fmtint(sGssCleanupCreds, o->gss_cleanup_creds);
 	dump_cfg_fmtint(sGssStrictAcceptor, o->gss_strict_acceptor);
+	dump_cfg_fmtint(sGssStoreNonAn2Ln, o->gss_store_nonan2ln);
 	dump_cfg_fmtint(sGssStoreRekey, o->gss_store_rekey);
 #endif
 	dump_cfg_fmtint(sPasswordAuthentication, o->password_authentication);
