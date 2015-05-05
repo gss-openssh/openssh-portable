@@ -1288,6 +1288,7 @@ muxserver_listen(struct ssh *ssh)
 {
 	mode_t old_umask;
 	char *orig_control_path = options.control_path;
+	char *tail;
 	char rbuf[16+1];
 	u_int i, r;
 	int oerrno;
@@ -1312,7 +1313,15 @@ muxserver_listen(struct ssh *ssh)
 	}
 	rbuf[sizeof(rbuf) - 1] = '\0';
 	options.control_path = NULL;
-	xasprintf(&options.control_path, "%s.%s", orig_control_path, rbuf);
+
+	tail = strrchr(orig_control_path, '/');
+	if (tail == NULL)
+		tail = orig_control_path;
+	else
+		++tail;
+
+	xasprintf(&options.control_path, "%.*s.%s",
+	    (int)(tail - orig_control_path), orig_control_path, rbuf);
 	debug3("%s: temporary control path %s", __func__, options.control_path);
 
 	old_umask = umask(0177);
