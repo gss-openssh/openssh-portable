@@ -4026,7 +4026,7 @@ AC_ARG_WITH([kerberos5],
 			blibpath="$blibpath:${KRB5ROOT}/lib"
 		fi
 
-		AC_CHECK_HEADERS([gssapi.h gssapi/gssapi.h])
+		AC_CHECK_HEADERS([gssapi.h gssapi/gssapi.h gssapi/gssapi_ext.h])
 		AC_CHECK_HEADERS([gssapi_krb5.h gssapi/gssapi_krb5.h])
 		AC_CHECK_HEADERS([gssapi_generic.h gssapi/gssapi_generic.h])
 
@@ -4047,8 +4047,10 @@ AC_ARG_WITH([kerberos5],
 #endif
 		]])
 		saved_LIBS="$LIBS"
-		LIBS="$LIBS $K5LIBS"
+		LIBS="$LIBS $K5LIBS $GSSLIBS"
 		AC_CHECK_FUNCS([krb5_cc_new_unique krb5_get_error_message krb5_free_error_message])
+		AC_CHECK_FUNCS([gss_localname gss_userok])
+		AC_CHECK_FUNCS([gss_indicate_mechs_by_attrs])
 		LIBS="$saved_LIBS"
 
 	fi
