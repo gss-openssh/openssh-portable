@@ -65,7 +65,7 @@ over an insecure network.
 .Nm
 listens for connections from clients.
 It is normally started at boot from
-.Pa /etc/rc .
+.Pa /etc/init.d/ssh .
 It forks a new
 daemon for each incoming connection.
 The forked daemons handle
@@ -884,7 +884,7 @@ This file is for host-based authentication (see
 .Xr ssh 1 ) .
 It should only be writable by root.
 .Pp
-.It Pa /etc/moduli
+.It Pa /etc/ssh/moduli
 Contains Diffie-Hellman groups used for the "Diffie-Hellman Group Exchange"
 key exchange method.
 The file format is described in
@@ -982,7 +982,6 @@ The content of this file is not sensitive; it can be world-readable.
 .Xr ssh-keyscan 1 ,
 .Xr chroot 2 ,
 .Xr hosts_access 5 ,
-.Xr login.conf 5 ,
 .Xr moduli 5 ,
 .Xr sshd_config 5 ,
 .Xr inetd 8 ,
