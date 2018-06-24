@@ -266,6 +266,7 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 	Authctxt *authctxt = ssh->authctxt;
 	Authmethod *m = NULL;
 	char *user = NULL, *service = NULL, *method = NULL, *style = NULL;
+        char *role = NULL;
 	int r, authenticated = 0;
 	double tstart = monotime_double();
 
@@ -279,8 +280,13 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 	debug("userauth-request for user %s service %s method %s", user, service, method);
 	debug("attempt %d failures %d", authctxt->attempt, authctxt->failures);
 
+	if ((role = strchr(user, '/')) != NULL)
+		*role++ = 0;
+
 	if ((style = strchr(user, ':')) != NULL)
 		*style++ = 0;
+	else if (role && (style = strchr(role, ':')) != NULL)
+		*style++ = '\0';
 
 	if (authctxt->attempt++ == 0) {
 		/* setup auth context */
@@ -307,8 +313,9 @@ input_userauth_request(int type, u_int32_t seq, struct ssh *ssh)
 		    use_privsep ? " [net]" : "");
 		authctxt->service = xstrdup(service);
 		authctxt->style = style ? xstrdup(style) : NULL;
+		authctxt->role = role ? xstrdup(role) : NULL;
 		if (use_privsep)
-			mm_inform_authserv(service, style);
+			mm_inform_authserv(service, style, role);
 		userauth_banner(ssh);
 		if (auth2_setup_methods_lists(authctxt) != 0)
 			ssh_packet_disconnect(ssh,

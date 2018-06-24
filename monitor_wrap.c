@@ -364,10 +364,10 @@ mm_auth2_read_banner(void)
 	return (banner);
 }
 
-/* Inform the privileged process about service and style */
+/* Inform the privileged process about service, style, and role */
 
 void
-mm_inform_authserv(char *service, char *style)
+mm_inform_authserv(char *service, char *style, char *role)
 {
 	struct sshbuf *m;
 	int r;
@@ -377,10 +377,32 @@ mm_inform_authserv(char *service, char *style)
 	if ((m = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
 	if ((r = sshbuf_put_cstring(m, service)) != 0 ||
-	    (r = sshbuf_put_cstring(m, style ? style : "")) != 0)
+	    (r = sshbuf_put_cstring(m, style ? style : "")) != 0 ||
+	    (r = sshbuf_put_cstring(m, role ? role : "")) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_AUTHSERV, m);
+
+	sshbuf_free(m);
+}
+
+/* Inform the privileged process about role */
+
+void
+mm_inform_authrole(char *role)
+{
+	struct sshbuf *m;
+	int r;
+
+	debug3("%s entering", __func__);
+
+	if ((m = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+
+	if ((r = sshbuf_put_cstring(m, role ? role : "")) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_AUTHROLE, m);
 
 	sshbuf_free(m);
 }

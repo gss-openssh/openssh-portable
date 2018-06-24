@@ -44,7 +44,8 @@ int mm_is_monitor(void);
 DH *mm_choose_dh(int, int, int);
 int mm_sshkey_sign(struct ssh *, struct sshkey *, u_char **, size_t *,
     const u_char *, size_t, const char *, u_int compat);
-void mm_inform_authserv(char *, char *);
+void mm_inform_authserv(char *, char *, char *);
+void mm_inform_authrole(char *);
 struct passwd *mm_getpwnamallow(struct ssh *, const char *);
 char *mm_auth2_read_banner(void);
 int mm_auth_password(struct ssh *, char *);

@@ -142,7 +142,7 @@ platform_setusercontext(struct passwd *pw)
  * called if sshd is running as root.
  */
 void
-platform_setusercontext_post_groups(struct passwd *pw)
+platform_setusercontext_post_groups(struct passwd *pw, const char *role)
 {
 #if !defined(HAVE_LOGIN_CAP) && defined(USE_PAM)
 	/*
@@ -183,7 +183,7 @@ platform_setusercontext_post_groups(struct passwd *pw)
 	}
 #endif /* HAVE_SETPCRED */
 #ifdef WITH_SELINUX
-	ssh_selinux_setup_exec_context(pw->pw_name);
+	ssh_selinux_setup_exec_context(pw->pw_name, role);
 #endif
 }
 

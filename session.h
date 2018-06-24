@@ -77,7 +77,7 @@ void	 session_pty_cleanup2(Session *);
 Session	*session_new(void);
 Session	*session_by_tty(char *);
 void	 session_close(struct ssh *, Session *);
-void	 do_setusercontext(struct passwd *);
+void	 do_setusercontext(struct passwd *, const char *);
 
 const char	*session_get_remote_name_or_ip(struct ssh *, u_int, int);
 

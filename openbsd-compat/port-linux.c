@@ -28,6 +28,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#ifdef WITH_SELINUX
+#include "hostfile.h"
+#include "auth.h"
+#endif
+
 #include "log.h"
 #include "xmalloc.h"
 #include "port-linux.h"
@@ -56,7 +61,7 @@ ssh_selinux_enabled(void)
 
 /* Return the default security context for the given username */
 static security_context_t
-ssh_selinux_getctxbyname(char *pwname)
+ssh_selinux_getctxbyname(char *pwname, const char *role)
 {
 	security_context_t sc = NULL;
 	char *sename = NULL, *lvl = NULL;
@@ -71,9 +76,16 @@ ssh_selinux_getctxbyname(char *pwname)
 #endif
 
 #ifdef HAVE_GET_DEFAULT_CONTEXT_WITH_LEVEL
-	r = get_default_context_with_level(sename, lvl, NULL, &sc);
+	if (role != NULL && role[0])
+		r = get_default_context_with_rolelevel(sename, role, lvl, NULL,
+						       &sc);
+	else
+		r = get_default_context_with_level(sename, lvl, NULL, &sc);
 #else
-	r = get_default_context(sename, NULL, &sc);
+	if (role != NULL && role[0])
+		r = get_default_context_with_role(sename, role, NULL, &sc);
+	else
+		r = get_default_context(sename, NULL, &sc);
 #endif
 
 	if (r != 0) {
@@ -103,7 +115,7 @@ ssh_selinux_getctxbyname(char *pwname)
 
 /* Set the execution context to the default for the specified user */
 void
-ssh_selinux_setup_exec_context(char *pwname)
+ssh_selinux_setup_exec_context(char *pwname, const char *role)
 {
 	security_context_t user_ctx = NULL;
 
@@ -112,7 +124,7 @@ ssh_selinux_setup_exec_context(char *pwname)
 
 	debug3("%s: setting execution context", __func__);
 
-	user_ctx = ssh_selinux_getctxbyname(pwname);
+	user_ctx = ssh_selinux_getctxbyname(pwname, role);
 	if (setexeccon(user_ctx) != 0) {
 		switch (security_getenforce()) {
 		case -1:
@@ -134,7 +146,7 @@ ssh_selinux_setup_exec_context(char *pwname)
 
 /* Set the TTY context for the specified user */
 void
-ssh_selinux_setup_pty(char *pwname, const char *tty)
+ssh_selinux_setup_pty(char *pwname, const char *tty, const char *role)
 {
 	security_context_t new_tty_ctx = NULL;
 	security_context_t user_ctx = NULL;
@@ -146,7 +158,7 @@ ssh_selinux_setup_pty(char *pwname, const char *tty)
 
 	debug3("%s: setting TTY context on %s", __func__, tty);
 
-	user_ctx = ssh_selinux_getctxbyname(pwname);
+	user_ctx = ssh_selinux_getctxbyname(pwname, role);
 
 	/* XXX: should these calls fatal() upon failure in enforcing mode? */
 

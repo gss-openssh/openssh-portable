@@ -65,6 +65,7 @@ struct Authctxt {
 	char		*service;
 	struct passwd	*pw;		/* set if 'valid' */
 	char		*style;
+	char		*role;
 
 	/* Method lists for multiple authentication */
 	char		**auth_methods;	/* modified from server config */

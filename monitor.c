@@ -117,6 +117,7 @@ int mm_answer_sign(struct ssh *, int, struct sshbuf *);
 int mm_answer_pwnamallow(struct ssh *, int, struct sshbuf *);
 int mm_answer_auth2_read_banner(struct ssh *, int, struct sshbuf *);
 int mm_answer_authserv(struct ssh *, int, struct sshbuf *);
+int mm_answer_authrole(struct ssh *, int, struct sshbuf *);
 int mm_answer_authpassword(struct ssh *, int, struct sshbuf *);
 int mm_answer_bsdauthquery(struct ssh *, int, struct sshbuf *);
 int mm_answer_bsdauthrespond(struct ssh *, int, struct sshbuf *);
@@ -195,6 +196,7 @@ struct mon_table mon_dispatch_proto20[] = {
     {MONITOR_REQ_SIGN, MON_ONCE, mm_answer_sign},
     {MONITOR_REQ_PWNAM, MON_ONCE, mm_answer_pwnamallow},
     {MONITOR_REQ_AUTHSERV, MON_ONCE, mm_answer_authserv},
+    {MONITOR_REQ_AUTHROLE, MON_ONCE, mm_answer_authrole},
     {MONITOR_REQ_AUTH2_READ_BANNER, MON_ONCE, mm_answer_auth2_read_banner},
     {MONITOR_REQ_AUTHPASSWORD, MON_AUTH, mm_answer_authpassword},
 #ifdef USE_PAM
@@ -802,6 +804,7 @@ mm_answer_pwnamallow(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	/* Allow service/style information on the auth context */
 	monitor_permit(mon_dispatch, MONITOR_REQ_AUTHSERV, 1);
+	monitor_permit(mon_dispatch, MONITOR_REQ_AUTHROLE, 1);
 	monitor_permit(mon_dispatch, MONITOR_REQ_AUTH2_READ_BANNER, 1);
 
 #ifdef USE_PAM
@@ -835,7 +838,8 @@ mm_answer_authserv(struct ssh *ssh, int sock, struct sshbuf *m)
 	monitor_permit_authentications(1);
 
 	if ((r = sshbuf_get_cstring(m, &authctxt->service, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(m, &authctxt->style, NULL)) != 0)
+	    (r = sshbuf_get_cstring(m, &authctxt->style, NULL)) != 0 ||
+	    (r = sshbuf_get_cstring(m, &authctxt->role, NULL)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	debug3("%s: service=%s, style=%s",
 	    __func__, authctxt->service, authctxt->style);
@@ -844,6 +848,34 @@ mm_answer_authserv(struct ssh *ssh, int sock, struct sshbuf *m)
 		free(authctxt->style);
 		authctxt->style = NULL;
 	}
+
+	if (strlen(authctxt->role) == 0) {
+		free(authctxt->role);
+		authctxt->role = NULL;
+	}
+
+	return (0);
+}
+
+int
+mm_answer_authrole(struct ssh *ssh, int sock, struct sshbuf *m)
+{
+	int r;
+	char *role;
+	size_t rlen;
+
+	monitor_permit_authentications(1);
+
+	if ((r = sshbuf_get_cstring(m, &role, &rlen)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	debug3("%s: role=%s", __func__, role);
+
+	if (rlen == 0 || strlen(role) != rlen) {
+		free(role);
+		authctxt->role = NULL;
+	} else
+		authctxt->role = role;
 
 	return (0);
 }
@@ -1511,7 +1543,7 @@ mm_answer_pty(struct ssh *ssh, int sock, struct sshbuf *m)
 	res = pty_allocate(&s->ptyfd, &s->ttyfd, s->tty, sizeof(s->tty));
 	if (res == 0)
 		goto error;
-	pty_setowner(authctxt->pw, s->tty);
+	pty_setowner(authctxt->pw, s->tty, authctxt->role);
 
 	if ((r = sshbuf_put_u32(m, 1)) != 0 ||
 	    (r = sshbuf_put_cstring(m, s->tty)) != 0)
