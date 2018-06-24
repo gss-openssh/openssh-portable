@@ -261,8 +261,7 @@ auth_rhosts2(struct passwd *pw, const char *client_user, const char *hostname,
 		return 0;
 	}
 	if (options.strict_modes &&
-	    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
-	    (st.st_mode & 022) != 0)) {
+	    !secure_permissions(&st, pw->pw_uid)) {
 		logit("Rhosts authentication refused for %.100s: "
 		    "bad ownership or modes for home directory.", pw->pw_name);
 		auth_debug_add("Rhosts authentication refused for %.100s: "
@@ -288,8 +287,7 @@ auth_rhosts2(struct passwd *pw, const char *client_user, const char *hostname,
 		 * allowing access to their account by anyone.
 		 */
 		if (options.strict_modes &&
-		    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
-		    (st.st_mode & 022) != 0)) {
+		    !secure_permissions(&st, pw->pw_uid)) {
 			logit("Rhosts authentication refused for %.100s: bad modes for %.200s",
 			    pw->pw_name, buf);
 			auth_debug_add("Bad file modes for %.200s", buf);

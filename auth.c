@@ -472,8 +472,7 @@ check_key_in_hostfiles(struct passwd *pw, struct sshkey *key, const char *host,
 		user_hostfile = tilde_expand_filename(userfile, pw->pw_uid);
 		if (options.strict_modes &&
 		    (stat(user_hostfile, &st) == 0) &&
-		    ((st.st_uid != 0 && st.st_uid != pw->pw_uid) ||
-		    (st.st_mode & 022) != 0)) {
+		    !secure_permissions(&st, pw->pw_uid)) {
 			logit("Authentication refused for %.100s: "
 			    "bad owner or modes for %.200s",
 			    pw->pw_name, user_hostfile);

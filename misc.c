@@ -59,8 +59,9 @@
 #include <netdb.h>
 #ifdef HAVE_PATHS_H
 # include <paths.h>
-#include <pwd.h>
 #endif
+#include <pwd.h>
+#include <grp.h>
 #ifdef SSH_TUN_OPENBSD
 #include <net/if.h>
 #endif
@@ -1104,6 +1105,55 @@ percent_expand(const char *string, ...)
 }
 
 int
+secure_permissions(struct stat *st, uid_t uid)
+{
+	if (!platform_sys_dir_uid(st->st_uid) && st->st_uid != uid)
+		return 0;
+	if ((st->st_mode & 002) != 0)
+		return 0;
+	if ((st->st_mode & 020) != 0) {
+		/* If the file is group-writable, the group in question must
+		 * have exactly one member, namely the file's owner.
+		 * (Zero-member groups are typically used by setgid
+		 * binaries, and are unlikely to be suitable.)
+		 */
+		struct passwd *pw;
+		struct group *gr;
+		int members = 0;
+
+		gr = getgrgid(st->st_gid);
+		if (!gr)
+			return 0;
+
+		/* Check primary group memberships. */
+		while ((pw = getpwent()) != NULL) {
+			if (pw->pw_gid == gr->gr_gid) {
+				++members;
+				if (pw->pw_uid != uid)
+					return 0;
+			}
+		}
+		endpwent();
+
+		pw = getpwuid(st->st_uid);
+		if (!pw)
+			return 0;
+
+		/* Check supplementary group memberships. */
+		if (gr->gr_mem[0]) {
+			++members;
+			if (strcmp(pw->pw_name, gr->gr_mem[0]) ||
+			    gr->gr_mem[1])
+				return 0;
+		}
+
+		if (!members)
+			return 0;
+	}
+	return 1;
+}
+
+int
 tun_open(int tun, int mode, char **ifname)
 {
 #if defined(CUSTOM_SYS_TUN_OPEN)
@@ -1860,8 +1910,7 @@ safe_path(const char *name, struct stat *stp, const char *pw_dir,
 		snprintf(err, errlen, "%s is not a regular file", buf);
 		return -1;
 	}
-	if ((!platform_sys_dir_uid(stp->st_uid) && stp->st_uid != uid) ||
-	    (stp->st_mode & 022) != 0) {
+	if (!secure_permissions(stp, uid)) {
 		snprintf(err, errlen, "bad ownership or modes for file %s",
 		    buf);
 		return -1;
@@ -1876,8 +1925,7 @@ safe_path(const char *name, struct stat *stp, const char *pw_dir,
 		strlcpy(buf, cp, sizeof(buf));
 
 		if (stat(buf, &st) < 0 ||
-		    (!platform_sys_dir_uid(st.st_uid) && st.st_uid != uid) ||
-		    (st.st_mode & 022) != 0) {
+		    !secure_permissions(&st, uid)) {
 			snprintf(err, errlen,
 			    "bad ownership or modes for directory %s", buf);
 			return -1;

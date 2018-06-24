@@ -1827,7 +1827,9 @@ This is the per-user configuration file.
 The format of this file is described above.
 This file is used by the SSH client.
 Because of the potential for abuse, this file must have strict permissions:
-read/write for the user, and not writable by others.
+read/write for the user, and not accessible by others.
+It may be group-writable provided that the group in question contains only
+the user.
 .It Pa /etc/ssh/ssh_config
 Systemwide configuration file.
 This file provides defaults for those
