@@ -257,7 +257,7 @@ ssh_proxy_connect(struct ssh *ssh, const char *host, u_short port,
 		/* Execute the proxy command.  Note that we gave up any
 		   extra privileges above. */
 		signal(SIGPIPE, SIG_DFL);
-		execv(argv[0], argv);
+		execvp(argv[0], argv);
 		perror(argv[0]);
 		exit(1);
 	}
@@ -1410,7 +1410,7 @@ ssh_local_cmd(const char *args)
 	if (pid == 0) {
 		signal(SIGPIPE, SIG_DFL);
 		debug3("Executing %s -c \"%s\"", shell, args);
-		execl(shell, shell, "-c", args, (char *)NULL);
+		execlp(shell, shell, "-c", args, (char *)NULL);
 		error("Couldn't execute %s -c \"%s\": %s",
 		    shell, args, strerror(errno));
 		_exit(1);
