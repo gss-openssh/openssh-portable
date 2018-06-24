@@ -1,0 +1,44 @@
+From 5b35741e661c6a95e39f5f897ae62c0f3686ca4f Mon Sep 17 00:00:00 2001
+From: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+Date: Tue, 9 May 2017 13:31:05 -0300
+Subject: Allow getuid and geteuid calls
+
+getuid and geteuid are needed when using an openssl engine that calls a
+crypto card, e.g. ICA (libica).
+Those syscalls are also needed by the distros for audit code.
+
+Signed-off-by: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+
+Origin: other, https://bugzilla.mindrot.org/show_bug.cgi?id=2752
+Bug: https://bugzilla.mindrot.org/show_bug.cgi?id=2752
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1686618
+Last-Update: 2017-08-28
+
+Patch-Name: seccomp-getuid-geteuid.patch
+---
+ sandbox-seccomp-filter.c | 12 ++++++++++++
+ 1 file changed, 12 insertions(+)
+
+diff --git a/sandbox-seccomp-filter.c b/sandbox-seccomp-filter.c
+index 6e7de311..e86aa2c9 100644
+--- a/sandbox-seccomp-filter.c
++++ b/sandbox-seccomp-filter.c
+@@ -175,6 +175,18 @@ static const struct sock_filter preauth_insns[] = {
+ #ifdef __NR_getpid
+ 	SC_ALLOW(__NR_getpid),
+ #endif
++#ifdef __NR_getuid
++	SC_ALLOW(__NR_getuid),
++#endif
++#ifdef __NR_getuid32
++	SC_ALLOW(__NR_getuid32),
++#endif
++#ifdef __NR_geteuid
++	SC_ALLOW(__NR_geteuid),
++#endif
++#ifdef __NR_geteuid32
++	SC_ALLOW(__NR_geteuid32),
++#endif
+ #ifdef __NR_getrandom
+ 	SC_ALLOW(__NR_getrandom),
+ #endif

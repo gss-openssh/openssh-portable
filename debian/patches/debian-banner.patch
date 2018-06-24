@@ -1,0 +1,111 @@
+From 9ec4db016a0510c449f9cefeb3299c2e755698c7 Mon Sep 17 00:00:00 2001
+From: Kees Cook <kees@debian.org>
+Date: Sun, 9 Feb 2014 16:10:06 +0000
+Subject: Add DebianBanner server configuration option
+
+Setting this to "no" causes sshd to omit the Debian revision from its
+initial protocol handshake, for those scared by package-versioning.patch.
+
+Bug-Debian: http://bugs.debian.org/562048
+Forwarded: not-needed
+Last-Update: 2018-04-03
+
+Patch-Name: debian-banner.patch
+---
+ servconf.c    | 9 +++++++++
+ servconf.h    | 2 ++
+ sshd.c        | 3 ++-
+ sshd_config.5 | 5 +++++
+ 4 files changed, 18 insertions(+), 1 deletion(-)
+
+diff --git a/servconf.c b/servconf.c
+index 3fff3d53..0a8f6fd6 100644
+--- a/servconf.c
++++ b/servconf.c
+@@ -177,6 +177,7 @@ initialize_server_options(ServerOptions *options)
+ 	options->fingerprint_hash = -1;
+ 	options->disable_forwarding = -1;
+ 	options->expose_userauth_info = -1;
++	options->debian_banner = -1;
+ }
+ 
+ /* Returns 1 if a string option is unset or set to "none" or 0 otherwise. */
+@@ -393,6 +394,8 @@ fill_default_server_options(ServerOptions *options)
+ 		options->disable_forwarding = 0;
+ 	if (options->expose_userauth_info == -1)
+ 		options->expose_userauth_info = 0;
++	if (options->debian_banner == -1)
++		options->debian_banner = 1;
+ 
+ 	assemble_algorithms(options);
+ 
+@@ -480,6 +483,7 @@ typedef enum {
+ 	sStreamLocalBindMask, sStreamLocalBindUnlink,
+ 	sAllowStreamLocalForwarding, sFingerprintHash, sDisableForwarding,
+ 	sExposeAuthInfo, sRDomain,
++	sDebianBanner,
+ 	sDeprecated, sIgnore, sUnsupported
+ } ServerOpCodes;
+ 
+@@ -634,6 +638,7 @@ static struct {
+ 	{ "disableforwarding", sDisableForwarding, SSHCFG_ALL },
+ 	{ "exposeauthinfo", sExposeAuthInfo, SSHCFG_ALL },
+ 	{ "rdomain", sRDomain, SSHCFG_ALL },
++	{ "debianbanner", sDebianBanner, SSHCFG_GLOBAL },
+ 	{ NULL, sBadOption, 0 }
+ };
+ 
+@@ -2056,6 +2061,10 @@ process_server_config_line(ServerOptions *options, char *line,
+ 			*charptr = xstrdup(arg);
+ 		break;
+ 
++	case sDebianBanner:
++		intptr = &options->debian_banner;
++		goto parse_flag;
++
+ 	case sDeprecated:
+ 	case sIgnore:
+ 	case sUnsupported:
+diff --git a/servconf.h b/servconf.h
+index 5dfc9bc0..b0fa7045 100644
+--- a/servconf.h
++++ b/servconf.h
+@@ -211,6 +211,8 @@ typedef struct {
+ 
+ 	int	fingerprint_hash;
+ 	int	expose_userauth_info;
++
++	int	debian_banner;
+ }       ServerOptions;
+ 
+ /* Information about the incoming connection as used by Match */
+diff --git a/sshd.c b/sshd.c
+index 9a7f5495..1d645a17 100644
+--- a/sshd.c
++++ b/sshd.c
+@@ -384,7 +384,8 @@ sshd_exchange_identification(struct ssh *ssh, int sock_in, int sock_out)
+ 	char remote_version[256];	/* Must be at least as big as buf. */
+ 
+ 	xasprintf(&server_version_string, "SSH-%d.%d-%.100s%s%s\r\n",
+-	    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2, SSH_RELEASE,
++	    PROTOCOL_MAJOR_2, PROTOCOL_MINOR_2,
++	    options.debian_banner ? SSH_RELEASE : SSH_RELEASE_MINIMUM,
+ 	    *options.version_addendum == '\0' ? "" : " ",
+ 	    options.version_addendum);
+ 
+diff --git a/sshd_config.5 b/sshd_config.5
+index 1a1c6dd0..45044a70 100644
+--- a/sshd_config.5
++++ b/sshd_config.5
+@@ -531,6 +531,11 @@ or
+ .Cm no .
+ The default is
+ .Cm yes .
++.It Cm DebianBanner
++Specifies whether the distribution-specified extra version suffix is
++included during initial protocol handshake.
++The default is
++.Cm yes .
+ .It Cm DenyGroups
+ This keyword can be followed by a list of group name patterns, separated
+ by spaces.

@@ -1,0 +1,47 @@
+From 8435aa5e322a4899dcb9bc68d5f0551e93d3f5a5 Mon Sep 17 00:00:00 2001
+From: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+Date: Tue, 9 May 2017 10:53:04 -0300
+Subject: Allow flock and ipc syscall for s390 architecture
+
+In order to use the OpenSSL-ibmpkcs11 engine it is needed to allow flock
+and ipc calls, because this engine calls OpenCryptoki (a PKCS#11
+implementation) which calls the libraries that will communicate with the
+crypto cards. OpenCryptoki makes use of flock and ipc and, as of now,
+this is only need on s390 architecture.
+
+Signed-off-by: Eduardo Barretto <ebarretto@linux.vnet.ibm.com>
+
+Origin: other, https://bugzilla.mindrot.org/show_bug.cgi?id=2752
+Bug: https://bugzilla.mindrot.org/show_bug.cgi?id=2752
+Bug-Ubuntu: https://bugs.launchpad.net/bugs/1686618
+Last-Update: 2017-08-28
+
+Patch-Name: seccomp-s390-flock-ipc.patch
+---
+ sandbox-seccomp-filter.c | 6 ++++++
+ 1 file changed, 6 insertions(+)
+
+diff --git a/sandbox-seccomp-filter.c b/sandbox-seccomp-filter.c
+index ca75cc71..6e7de311 100644
+--- a/sandbox-seccomp-filter.c
++++ b/sandbox-seccomp-filter.c
+@@ -166,6 +166,9 @@ static const struct sock_filter preauth_insns[] = {
+ #ifdef __NR_exit_group
+ 	SC_ALLOW(__NR_exit_group),
+ #endif
++#if defined(__NR_flock) && defined(__s390__)
++	SC_ALLOW(__NR_flock),
++#endif
+ #ifdef __NR_getpgid
+ 	SC_ALLOW(__NR_getpgid),
+ #endif
+@@ -178,6 +181,9 @@ static const struct sock_filter preauth_insns[] = {
+ #ifdef __NR_gettimeofday
+ 	SC_ALLOW(__NR_gettimeofday),
+ #endif
++#if defined(__NR_ipc) && defined(__s390__)
++	SC_ALLOW(__NR_ipc),
++#endif
+ #ifdef __NR_madvise
+ 	SC_ALLOW(__NR_madvise),
+ #endif

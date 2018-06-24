@@ -1,0 +1,2 @@
+mv_conffile /etc/pam.d/ssh /etc/pam.d/sshd 1:4.7p1-4~
+rm_conffile /etc/init/ssh.conf 1:7.5p1-6~

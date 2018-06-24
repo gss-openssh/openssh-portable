@@ -1,0 +1,97 @@
+#! /bin/sh
+set -ex
+
+if [ "$(id -un)" != openssh-tests ]; then
+	TMP="$ADTTMP/user"
+	STARTED_HAVEGED=false
+
+	cleanup () {
+		if $STARTED_HAVEGED; then
+			if [ -d /run/systemd/system ] && \
+			   which systemctl >/dev/null 2>&1; then
+				systemctl disable haveged || true
+				systemctl stop haveged || true
+			else
+				start-stop-daemon --stop --quiet \
+					--retry=TERM/30/KILL/5 \
+					--pidfile "$TMP/haveged.pid" \
+					--name haveged
+			fi
+		fi
+		rm -rf "$TMP"
+		rm -f /etc/sudoers.d/openssh-tests
+		if id openssh-tests >/dev/null 2>&1; then
+			deluser --remove-home openssh-tests
+		fi
+	}
+	trap cleanup EXIT
+
+	adduser --disabled-password --gecos 'OpenSSH tests' openssh-tests
+	cat >/etc/sudoers.d/openssh-tests <<EOF
+openssh-tests ALL = (ALL:ALL) NOPASSWD: ALL
+EOF
+	chmod 440 /etc/sudoers.d/openssh-tests
+	mkdir -p "$TMP"
+	cp -a . "$TMP/tree"
+	chown -R openssh-tests:openssh-tests "$TMP"
+
+	# If we're running in a container, haveged may not have started
+	# automatically.
+	if [ -d /run/systemd/system ] && which systemctl >/dev/null 2>&1; then
+		systemctl enable haveged || true
+		systemctl start haveged || true
+		STARTED_HAVEGED=:
+	elif ! pidof haveged >/dev/null; then
+		start-stop-daemon --start --quiet \
+			--pidfile "$TMP/haveged.pid" \
+			--exec /usr/sbin/haveged -- -p "$TMP/haveged.pid"
+		STARTED_HAVEGED=:
+	fi
+
+	sudo -u openssh-tests env TMP="$TMP" "$0" "$@"
+	exit "$?"
+fi
+
+# Don't use "make tests"; we want to test the installed version.
+
+cd "$TMP/tree"
+
+# We aren't actually going to use most of this build, but we need a basic
+# build tree in place in order to be able to build the regression tests.
+autoreconf -f -i
+cp -f /usr/share/misc/config.guess /usr/share/misc/config.sub ./
+./configure
+make
+
+# The defaults for TEST_SSH_* in regress/test-exec.sh use the system
+# versions, but the top-level Makefile sets things up to test the just-built
+# versions, so we must bypass the latter in order to work correctly under
+# autopkgtest.
+make regress-prep
+make regress-binaries
+
+SRCDIR="$(pwd)"
+BUILDDIR="$SRCDIR"
+ret=0
+annotate-output +%H:%M:%S.%N make -C regress \
+	.OBJDIR="$BUILDDIR/regress" \
+	.CURDIR="$SRCDIR/regress" \
+	BUILDDIR="$BUILDDIR" \
+	OBJ="$BUILDDIR/regress" \
+	SUDO=sudo \
+	TEST_SHELL='sh -x' \
+	TEST_SSH_SFTPSERVER=/usr/lib/openssh/sftp-server \
+	TEST_SSH_PLINK=plink \
+	TEST_SSH_PUTTYGEN=puttygen \
+	TEST_SSH_CONCH=conch \
+	TEST_SSH_IPV6=yes \
+	TEST_SSH_ECC=yes \
+	tests interop-tests </dev/zero || ret="$?"
+if [ "$ret" -ne 0 ]; then
+	for log in failed-regress.log failed-ssh.log failed-sshd.log; do
+		if [ -e "$BUILDDIR/regress/$log" ]; then
+			tail -v -n+0 "$BUILDDIR/regress/$log"
+		fi
+	done
+fi
+exit "$ret"
