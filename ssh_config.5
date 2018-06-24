@@ -71,6 +71,22 @@ Since the first obtained value for each parameter is used, more
 host-specific declarations should be given near the beginning of the
 file, and general defaults at the end.
 .Pp
+Note that the Debian
+.Ic openssh-client
+package sets several options as standard in
+.Pa /etc/ssh/ssh_config
+which are not the default in
+.Xr ssh 1 :
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Cm SendEnv No LANG LC_*
+.It
+.Cm HashKnownHosts No yes
+.It
+.Cm GSSAPIAuthentication No yes
+.El
+.Pp
 The file contains keyword-argument pairs, one per line.
 Lines starting with
 .Ql #
@@ -717,11 +733,12 @@ elapsed.
 .It Cm ForwardX11Trusted
 If this option is set to
 .Cm yes ,
+(the Debian-specific default),
 remote X11 clients will have full access to the original X11 display.
 .Pp
 If this option is set to
 .Cm no
-(the default),
+(the upstream default),
 remote X11 clients will be considered untrusted and prevented
 from stealing or tampering with data belonging to trusted X11
 clients.

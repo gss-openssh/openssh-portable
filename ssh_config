@@ -17,9 +17,10 @@
 # list of available options, their meanings and defaults, please see the
 # ssh_config(5) man page.
 
-# Host *
+Host *
 #   ForwardAgent no
 #   ForwardX11 no
+#   ForwardX11Trusted yes
 #   PasswordAuthentication yes
 #   HostbasedAuthentication no
 #   GSSAPIAuthentication no
@@ -43,3 +44,6 @@
 #   VisualHostKey no
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
 #   RekeyLimit 1G 1h
+    SendEnv LANG LC_*
+    HashKnownHosts yes
+    GSSAPIAuthentication yes

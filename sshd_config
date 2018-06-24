@@ -57,8 +57,9 @@ AuthorizedKeysFile	.ssh/authorized_keys
 #PasswordAuthentication yes
 #PermitEmptyPasswords no
 
-# Change to no to disable s/key passwords
-#ChallengeResponseAuthentication yes
+# Change to yes to enable challenge-response passwords (beware issues with
+# some PAM modules and threads)
+ChallengeResponseAuthentication no
 
 # Kerberos options
 #KerberosAuthentication no
@@ -79,16 +80,16 @@ AuthorizedKeysFile	.ssh/authorized_keys
 # If you just want the PAM account and session checks to run without
 # PAM authentication, then enable this but set PasswordAuthentication
 # and ChallengeResponseAuthentication to 'no'.
-#UsePAM no
+UsePAM yes
 
 #AllowAgentForwarding yes
 #AllowTcpForwarding yes
 #GatewayPorts no
-#X11Forwarding no
+X11Forwarding yes
 #X11DisplayOffset 10
 #X11UseLocalhost yes
 #PermitTTY yes
-#PrintMotd yes
+PrintMotd no
 #PrintLastLog yes
 #TCPKeepAlive yes
 #PermitUserEnvironment no
@@ -105,8 +106,11 @@ AuthorizedKeysFile	.ssh/authorized_keys
 # no default banner path
 #Banner none
 
+# Allow client to pass locale environment variables
+AcceptEnv LANG LC_*
+
 # override default of no subsystems
-Subsystem	sftp	/usr/libexec/sftp-server
+Subsystem	sftp	/usr/lib/openssh/sftp-server
 
 # the following are HPN related configuration options
 # tcp receive buffer polling. disable in non autotuning kernels

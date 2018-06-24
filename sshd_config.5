@@ -56,6 +56,28 @@ Arguments may optionally be enclosed in double quotes
 .Pq \&"
 in order to represent arguments containing spaces.
 .Pp
+Note that the Debian
+.Ic openssh-server
+package sets several options as standard in
+.Pa /etc/ssh/sshd_config
+which are not the default in
+.Xr sshd 8 :
+.Pp
+.Bl -bullet -offset indent -compact
+.It
+.Cm ChallengeResponseAuthentication No no
+.It
+.Cm X11Forwarding No yes
+.It
+.Cm PrintMotd No no
+.It
+.Cm AcceptEnv No LANG LC_*
+.It
+.Cm Subsystem No sftp /usr/lib/openssh/sftp-server
+.It
+.Cm UsePAM No yes
+.El
+.Pp
 The possible
 keywords and their meanings are as follows (note that
 keywords are case-insensitive and arguments are case-sensitive):
