@@ -72,6 +72,9 @@
 #ifndef RRSET_VALIDATED
 # define RRSET_VALIDATED	1
 #endif
+#ifndef RRSET_FORCE_EDNS0
+# define RRSET_FORCE_EDNS0	0x0001
+#endif
 
 /*
  * Return codes for getrrsetbyname()
