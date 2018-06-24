@@ -94,6 +94,130 @@ kex_gen_hash(
 	return 0;
 }
 
+int kex_gen_dec_hash_client(
+    struct ssh *ssh, const struct sshbuf *server_blob, const struct sshbuf *hkey,
+    struct sshbuf **shared_secretp, u_char *hash, size_t *hashlenp)
+{
+	struct kex *kex = ssh->kex;
+	struct sshbuf *secbuf = NULL;
+	int r;
+
+	switch (kex->kex_type) {
+#ifdef WITH_OPENSSL
+	case KEX_DH_GRP1_SHA1:
+	case KEX_DH_GRP14_SHA1:
+	case KEX_DH_GRP14_SHA256:
+	case KEX_DH_GRP16_SHA512:
+	case KEX_DH_GRP18_SHA512:
+# ifdef GSSAPI
+	case KEX_GSS_GRP1_SHA1:
+	case KEX_GSS_GRP14_SHA1:
+# endif
+		r = kex_dh_dec(kex, server_blob, &secbuf);
+		break;
+	case KEX_ECDH_SHA2:
+		r = kex_ecdh_dec(kex, server_blob, &secbuf);
+		break;
+#endif
+	case KEX_C25519_SHA256:
+		r = kex_c25519_dec(kex, server_blob, &secbuf);
+		break;
+	case KEX_KEM_SNTRUP4591761X25519_SHA512:
+		r = kex_kem_sntrup4591761x25519_dec(kex, server_blob,
+		    &secbuf);
+		break;
+	default:
+		r = SSH_ERR_INVALID_ARGUMENT;
+		break;
+	}
+	if (r != 0 ||
+	    (r = kex_gen_hash(
+	    kex->hash_alg,
+	    kex->client_version,
+	    kex->server_version,
+	    kex->my,
+	    kex->peer,
+	    hkey,
+	    kex->client_pub,
+	    server_blob,
+	    secbuf,
+	    hash, hashlenp)) != 0)
+		goto out;
+
+	*shared_secretp = secbuf;
+	secbuf = NULL;
+
+out:
+	sshbuf_free(secbuf);
+	return r;
+}
+
+int kex_gen_enc_hash_server(
+    struct ssh *ssh, const struct sshbuf *client_pubkey,
+    struct sshbuf **server_pubkeyp, const struct sshbuf *server_host_key_blob,
+    struct sshbuf **shared_secretp, u_char *hash, size_t *hashlenp)
+{
+	struct kex *kex = ssh->kex;
+	struct sshbuf *secbuf = NULL;
+	struct sshbuf *pubbuf = NULL;
+	int r;
+
+	*server_pubkeyp = NULL;
+	*shared_secretp = NULL;
+
+	/* compute shared secret */
+	switch (kex->kex_type) {
+#ifdef WITH_OPENSSL
+	case KEX_DH_GRP1_SHA1:
+	case KEX_DH_GRP14_SHA1:
+	case KEX_DH_GRP14_SHA256:
+	case KEX_DH_GRP16_SHA512:
+	case KEX_DH_GRP18_SHA512:
+# ifdef GSSAPI
+	case KEX_GSS_GRP1_SHA1:
+	case KEX_GSS_GRP14_SHA1:
+# endif
+		r = kex_dh_enc(kex, client_pubkey, &pubbuf, &secbuf);
+		break;
+	case KEX_ECDH_SHA2:
+		r = kex_ecdh_enc(kex, client_pubkey, &pubbuf, &secbuf);
+		break;
+#endif
+	case KEX_C25519_SHA256:
+		r = kex_c25519_enc(kex, client_pubkey, &pubbuf, &secbuf);
+		break;
+	case KEX_KEM_SNTRUP4591761X25519_SHA512:
+		r = kex_kem_sntrup4591761x25519_enc(kex, client_pubkey,
+		    &pubbuf, &secbuf);
+		break;
+	default:
+		r = SSH_ERR_INVALID_ARGUMENT;
+		break;
+	}
+	if (r != 0 ||
+	    (r = kex_gen_hash(
+	    kex->hash_alg,
+	    kex->client_version,
+	    kex->server_version,
+	    kex->peer,
+	    kex->my,
+	    server_host_key_blob,
+	    client_pubkey,
+	    pubbuf,
+	    secbuf,
+	    hash, hashlenp)) != 0)
+		goto out;
+
+	*shared_secretp = secbuf;
+	*server_pubkeyp = pubbuf;
+	secbuf = pubbuf = NULL;
+
+out:
+	sshbuf_free(secbuf);
+	sshbuf_free(pubbuf);
+	return r;
+}
+
 int
 kex_gen_client(struct ssh *ssh)
 {
@@ -167,50 +291,11 @@ input_kex_gen_reply(int type, u_int32_t seq, struct ssh *ssh)
 	    (r = sshpkt_get_end(ssh)) != 0)
 		goto out;
 
-	/* compute shared secret */
-	switch (kex->kex_type) {
-#ifdef WITH_OPENSSL
-	case KEX_DH_GRP1_SHA1:
-	case KEX_DH_GRP14_SHA1:
-	case KEX_DH_GRP14_SHA256:
-	case KEX_DH_GRP16_SHA512:
-	case KEX_DH_GRP18_SHA512:
-		r = kex_dh_dec(kex, server_blob, &shared_secret);
-		break;
-	case KEX_ECDH_SHA2:
-		r = kex_ecdh_dec(kex, server_blob, &shared_secret);
-		break;
-#endif
-	case KEX_C25519_SHA256:
-		r = kex_c25519_dec(kex, server_blob, &shared_secret);
-		break;
-	case KEX_KEM_SNTRUP4591761X25519_SHA512:
-		r = kex_kem_sntrup4591761x25519_dec(kex, server_blob,
-		    &shared_secret);
-		break;
-	default:
-		r = SSH_ERR_INVALID_ARGUMENT;
-		break;
-	}
-	if (r !=0 )
-		goto out;
-
-	/* calc and verify H */
+	/* compute the shared secret, H and verify H */
 	hashlen = sizeof(hash);
-	if ((r = kex_gen_hash(
-	    kex->hash_alg,
-	    kex->client_version,
-	    kex->server_version,
-	    kex->my,
-	    kex->peer,
-	    server_host_key_blob,
-	    kex->client_pub,
-	    server_blob,
-	    shared_secret,
-	    hash, &hashlen)) != 0)
-		goto out;
-
-	if ((r = sshkey_verify(server_host_key, signature, slen, hash, hashlen,
+	if ((r = kex_gen_dec_hash_client(ssh, server_blob, server_host_key_blob,
+	    &shared_secret, hash, &hashlen)) != 0 ||
+	    (r = sshkey_verify(server_host_key, signature, slen, hash, hashlen,
 	    kex->hostkey_alg, ssh->compat)) != 0)
 		goto out;
 
@@ -261,56 +346,16 @@ input_kex_gen_init(int type, u_int32_t seq, struct ssh *ssh)
 	    (r = sshpkt_get_end(ssh)) != 0)
 		goto out;
 
-	/* compute shared secret */
-	switch (kex->kex_type) {
-#ifdef WITH_OPENSSL
-	case KEX_DH_GRP1_SHA1:
-	case KEX_DH_GRP14_SHA1:
-	case KEX_DH_GRP14_SHA256:
-	case KEX_DH_GRP16_SHA512:
-	case KEX_DH_GRP18_SHA512:
-		r = kex_dh_enc(kex, client_pubkey, &server_pubkey,
-		    &shared_secret);
-		break;
-	case KEX_ECDH_SHA2:
-		r = kex_ecdh_enc(kex, client_pubkey, &server_pubkey,
-		    &shared_secret);
-		break;
-#endif
-	case KEX_C25519_SHA256:
-		r = kex_c25519_enc(kex, client_pubkey, &server_pubkey,
-		    &shared_secret);
-		break;
-	case KEX_KEM_SNTRUP4591761X25519_SHA512:
-		r = kex_kem_sntrup4591761x25519_enc(kex, client_pubkey,
-		    &server_pubkey, &shared_secret);
-		break;
-	default:
-		r = SSH_ERR_INVALID_ARGUMENT;
-		break;
-	}
-	if (r !=0 )
-		goto out;
-
-	/* calc H */
 	if ((server_host_key_blob = sshbuf_new()) == NULL) {
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
 	if ((r = sshkey_putb(server_host_public, server_host_key_blob)) != 0)
 		goto out;
+
 	hashlen = sizeof(hash);
-	if ((r = kex_gen_hash(
-	    kex->hash_alg,
-	    kex->client_version,
-	    kex->server_version,
-	    kex->peer,
-	    kex->my,
-	    server_host_key_blob,
-	    client_pubkey,
-	    server_pubkey,
-	    shared_secret,
-	    hash, &hashlen)) != 0)
+	if ((r = kex_gen_enc_hash_server(ssh, client_pubkey, &server_pubkey,
+	    server_host_key_blob, &shared_secret, hash, &hashlen)) != 0)
 		goto out;
 
 	/* sign H */

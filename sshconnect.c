@@ -81,6 +81,7 @@ extern int debug_flag;
 extern Options options;
 extern char *__progname;
 
+static int sockaddr_is_local(struct sockaddr *);
 static int show_other_keys(struct hostkeys *, struct sshkey *);
 static void warn_changed_key(struct sshkey *);
 
@@ -483,7 +484,8 @@ fail:
 static int
 ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
     struct sockaddr_storage *hostaddr, u_short port, int family,
-    int connection_attempts, int *timeout_ms, int want_keepalive)
+    int connection_attempts, int *timeout_ms, int *is_localhost,
+    int want_keepalive)
 {
 	int on = 1, saved_timeout_ms = *timeout_ms;
 	int oerrno, sock = -1, attempt;
@@ -493,6 +495,9 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 	debug2("%s", __func__);
 	memset(ntop, 0, sizeof(ntop));
 	memset(strport, 0, sizeof(strport));
+
+	if (is_localhost != NULL)
+		*is_localhost = -1;
 
 	for (attempt = 0; attempt < connection_attempts; attempt++) {
 		if (attempt > 0) {
@@ -518,6 +523,11 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 				errno = oerrno;
 				continue;
 			}
+
+			if (is_localhost != NULL && *is_localhost != 0)
+				*is_localhost =
+				    !!sockaddr_is_local(ai->ai_addr);
+
 			debug("Connecting to %.200s [%.100s] port %s.",
 				host, ntop, strport);
 
@@ -548,6 +558,9 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 			break;	/* Successful connection. */
 	}
 
+	if (is_localhost != NULL && *is_localhost == -1)
+		*is_localhost = 0;
+
 	/* Return failure if we didn't get a successful connection. */
 	if (sock == -1) {
 		error("ssh: connect to host %s port %s: %s",
@@ -573,13 +586,17 @@ ssh_connect_direct(struct ssh *ssh, const char *host, struct addrinfo *aitop,
 int
 ssh_connect(struct ssh *ssh, const char *host, struct addrinfo *addrs,
     struct sockaddr_storage *hostaddr, u_short port, int family,
-    int connection_attempts, int *timeout_ms, int want_keepalive)
+    int connection_attempts, int *timeout_ms, int *is_localhost,
+    int want_keepalive)
 {
 	int in, out;
 
+	if (is_localhost)
+		*is_localhost = 0;
 	if (options.proxy_command == NULL) {
 		return ssh_connect_direct(ssh, host, addrs, hostaddr, port,
-		    family, connection_attempts, timeout_ms, want_keepalive);
+		    family, connection_attempts, timeout_ms, is_localhost,
+		    want_keepalive);
 	} else if (strcmp(options.proxy_command, "-") == 0) {
 		if ((in = dup(STDIN_FILENO)) < 0 ||
 		    (out = dup(STDOUT_FILENO)) < 0) {

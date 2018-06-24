@@ -82,6 +82,13 @@
 # define SHA2_HMAC_MODES
 #endif
 
+#ifdef GSSAPI
+# define KEX_SERVER_GSSKEX \
+	KEX_GSS_GRP14_SHA1_ID, \
+	KEX_GSS_GEX_SHA1_ID, \
+	KEX_GSS_GRP1_SHA1_ID
+#endif
+
 #ifdef WITH_OPENSSL
 # ifdef HAVE_EVP_SHA256
 #  define KEX_CURVE25519_METHODS \

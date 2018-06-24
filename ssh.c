@@ -588,6 +588,7 @@ main(int ac, char **av)
 	char cname[NI_MAXHOST];
 	struct stat st;
 	struct passwd *pw;
+	int is_localhost;
 	extern int optind, optreset;
 	extern char *optarg;
 	struct Forward fwd;
@@ -1097,11 +1098,20 @@ main(int ac, char **av)
 	/* Hostname canonicalisation needs a few options filled. */
 	fill_default_options_for_canonicalization(&options);
 
+	/* Set up strings used to percent_expand() arguments */
+	if (gethostname(thishost, sizeof(thishost)) == -1)
+		fatal("gethostname: %s", strerror(errno));
+	strlcpy(shorthost, thishost, sizeof(shorthost));
+	shorthost[strcspn(thishost, ".")] = '\0';
+	snprintf(portstr, sizeof(portstr), "%d", options.port);
+	snprintf(uidstr, sizeof(uidstr), "%llu",
+	    (unsigned long long)pw->pw_uid);
+
 	/* If the user has replaced the hostname then take it into use now */
 	if (options.hostname != NULL) {
 		/* NB. Please keep in sync with readconf.c:match_cfg_line() */
 		cp = percent_expand(options.hostname,
-		    "h", host, (char *)NULL);
+		    "h", host, "l", thishost, "L", shorthost, (char *)NULL);
 		free(host);
 		host = cp;
 		free(options.hostname);
@@ -1272,15 +1282,6 @@ main(int ac, char **av)
 	if (options.user == NULL)
 		options.user = xstrdup(pw->pw_name);
 
-	/* Set up strings used to percent_expand() arguments */
-	if (gethostname(thishost, sizeof(thishost)) == -1)
-		fatal("gethostname: %s", strerror(errno));
-	strlcpy(shorthost, thishost, sizeof(shorthost));
-	shorthost[strcspn(thishost, ".")] = '\0';
-	snprintf(portstr, sizeof(portstr), "%d", options.port);
-	snprintf(uidstr, sizeof(uidstr), "%llu",
-	    (unsigned long long)pw->pw_uid);
-
 	if ((md = ssh_digest_start(SSH_DIGEST_SHA1)) == NULL ||
 	    ssh_digest_update(md, thishost, strlen(thishost)) < 0 ||
 	    ssh_digest_update(md, host, strlen(host)) < 0 ||
@@ -1368,11 +1369,19 @@ main(int ac, char **av)
 	/* Open a connection to the remote host. */
 	if (ssh_connect(ssh, host, addrs, &hostaddr, options.port,
 	    options.address_family, options.connection_attempts,
-	    &timeout_ms, options.tcp_keep_alive) != 0)
- 		exit(255);
+	    &timeout_ms, &is_localhost, options.tcp_keep_alive) != 0)
+		exit(255);
 
 	if (addrs != NULL)
 		freeaddrinfo(addrs);
+
+	if (options.replace_localhost && is_localhost) {
+		debug3("Using local host's hostname (%s) instead of %s",
+		    thishost, host);
+		/* "localhost" is an alias for every host */
+		free(host);
+		host = xstrdup(thishost);
+	}
 
 	ssh_packet_set_timeout(ssh, options.server_alive_interval,
 	    options.server_alive_count_max);

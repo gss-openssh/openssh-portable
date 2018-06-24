@@ -127,6 +127,10 @@
 #include "version.h"
 #include "ssherr.h"
 
+#ifdef USE_SECURITY_SESSION_API
+#include <Security/AuthSession.h>
+#endif
+
 #ifdef LIBWRAP
 #include <tcpd.h>
 #include <syslog.h>
@@ -1787,10 +1791,15 @@ main(int ac, char **av)
 		free(fp);
 	}
 	accumulate_host_timing_secret(cfg, NULL);
+#ifndef GSSAPI
+	/* The GSSAPI key exchange can run without a host key */
 	if (!sensitive_data.have_ssh2_key) {
 		logit("sshd: no hostkeys available -- exiting.");
 		exit(1);
 	}
+#else
+	ssh_log_gssapi_errors(1);
+#endif
 
 	/*
 	 * Load certificates. They are stored in an array at identical
@@ -2065,6 +2074,9 @@ main(int ac, char **av)
 	if (options.routing_domain != NULL)
 		set_process_rdomain(ssh, options.routing_domain);
 
+	/* set the HPN options for the child */
+	channel_set_hpn(options.hpn_disabled, options.hpn_buffer_size);
+
 	/*
 	 * The rest of the code depends on the fact that
 	 * ssh_remote_ipaddr() caches the remote ip, even if
@@ -2105,8 +2117,59 @@ main(int ac, char **av)
 	    rdomain == NULL ? "" : "\"");
 	free(laddr);
 
-	/* set the HPN options for the child */
-	channel_set_hpn(options.hpn_disabled, options.hpn_buffer_size);
+#ifdef USE_SECURITY_SESSION_API
+	/*
+	 * Create a new security session for use by the new user login if
+	 * the current session is the root session or we are not launched
+	 * by inetd (eg: debugging mode or server mode).  We do not
+	 * necessarily need to create a session if we are launched from
+	 * inetd because Panther xinetd will create a session for us.
+	 *
+	 * The only case where this logic will fail is if there is an
+	 * inetd running in a non-root session which is not creating
+	 * new sessions for us.  Then all the users will end up in the
+	 * same session (bad).
+	 *
+	 * When the client exits, the session will be destroyed for us
+	 * automatically.
+	 *
+	 * We must create the session before any credentials are stored
+	 * (including AFS pags, which happens a few lines below).
+	 */
+	{
+		OSStatus err = 0;
+		SecuritySessionId sid = 0;
+		SessionAttributeBits sattrs = 0;
+
+		err = SessionGetInfo(callerSecuritySession, &sid, &sattrs);
+		if (err)
+			error("SessionGetInfo() failed with error %.8X",
+			    (unsigned) err);
+		else
+			debug("Current Session ID is %.8X / Session Attributes are %.8X",
+			    (unsigned) sid, (unsigned) sattrs);
+
+		if (inetd_flag && !(sattrs & sessionIsRoot))
+			debug("Running in inetd mode in a non-root session... "
+			    "assuming inetd created the session for us.");
+		else {
+			debug("Creating new security session...");
+			err = SessionCreate(0, sessionHasTTY | sessionIsRemote);
+			if (err)
+				error("SessionCreate() failed with error %.8X",
+				    (unsigned) err);
+
+			err = SessionGetInfo(callerSecuritySession, &sid,
+			    &sattrs);
+			if (err)
+				error("SessionGetInfo() failed with error %.8X",
+				    (unsigned) err);
+			else
+				debug("New Session ID is %.8X / Session Attributes are %.8X",
+				    (unsigned) sid, (unsigned) sattrs);
+		}
+	}
+#endif
 
 	/*
 	 * We don't want to listen forever unless the other side
@@ -2304,6 +2367,14 @@ do_ssh2_kex(struct ssh *ssh)
 	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = compat_pkalg_proposal(
 	    list_hostkey_types());
 
+#ifdef GSSAPI
+	if (options.gss_keyex) {
+		r = kex_add_hook(ssh, kexgss_server_hook, NULL);
+		if (r != 0)
+			fatal("kex_add_hook: %s", ssh_err(r));
+	}
+#endif
+
 	/* start key exchange */
 	if ((r = kex_setup(ssh, myproposal)) != 0)
 		fatal("kex_setup: %s", ssh_err(r));
@@ -2322,6 +2393,13 @@ do_ssh2_kex(struct ssh *ssh)
 #endif
 	kex->kex[KEX_C25519_SHA256] = kex_gen_server;
 	kex->kex[KEX_KEM_SNTRUP4591761X25519_SHA512] = kex_gen_server;
+#ifdef GSSAPI
+	if (options.gss_keyex) {
+		kex->kex[KEX_GSS_GRP1_SHA1] = kexgss_server;
+		kex->kex[KEX_GSS_GRP14_SHA1] = kexgss_server;
+		kex->kex[KEX_GSS_GEX_SHA1] = kexgss_server;
+	}
+#endif
 	kex->load_host_public_key=&get_hostkey_public_by_type;
 	kex->load_host_private_key=&get_hostkey_private_by_type;
 	kex->host_key_index=&get_hostkey_index;

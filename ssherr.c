@@ -141,6 +141,8 @@ ssh_err(int n)
 		return "number is too large";
 	case SSH_ERR_SIGN_ALG_UNSUPPORTED:
 		return "signature algorithm not supported";
+	case SSH_ERR_GSSAPI_ERROR:
+		return "GSSAPI library error";
 	default:
 		return "unknown error";
 	}

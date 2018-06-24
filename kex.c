@@ -60,9 +60,14 @@
 #include "sshbuf.h"
 #include "digest.h"
 
+#ifdef GSSAPI
+#include "ssh-gss.h"
+#endif
+
 /* prototype */
 static int kex_choose_conf(struct ssh *);
 static int kex_input_newkeys(int, u_int32_t, struct ssh *);
+static void kex_free_hooks(struct kexhooks *);
 
 static const char *proposal_names[PROPOSAL_MAX] = {
 	"KEX algorithms",
@@ -113,15 +118,122 @@ static const struct kexalg kexalgs[] = {
 #endif /* HAVE_EVP_SHA256 || !WITH_OPENSSL */
 	{ NULL, -1, -1, -1},
 };
+static const struct kexalg kexalg_prefixes[] = {
+#ifdef GSSAPI
+	{ KEX_GSS_GEX_SHA1_ID, KEX_GSS_GEX_SHA1, 0, SSH_DIGEST_SHA1 },
+	{ KEX_GSS_GRP1_SHA1_ID, KEX_GSS_GRP1_SHA1, 0, SSH_DIGEST_SHA1 },
+	{ KEX_GSS_GRP14_SHA1_ID, KEX_GSS_GRP14_SHA1, 0, SSH_DIGEST_SHA1 },
+#endif
+	{ NULL, -1, -1, -1 },
+};
+
+#ifdef GSSAPI
+int
+kex_prop_update_gss(struct ssh *ssh, char *gss, char *myproposal[PROPOSAL_MAX])
+{
+	struct kex *kex = ssh->kex;
+	struct sshbuf *buf;
+	int r;
+	size_t len = 0;
+	char *p;
+	char *next;
+
+	if ((buf = sshbuf_new()) == NULL)
+		fatal("%s: sshbuf_new failed", __func__);
+
+	/* Prepend any available GSSKEX algs */
+	if (gss && (len = strlen(gss)) > 0 &&
+		(r = sshbuf_put(buf, gss, len)) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	/* Append any remaining non-GSSKEX algs */
+	for (p = next = myproposal[PROPOSAL_KEX_ALGS]; *p; p = next) {
+		for (len = 0; *next != '\0' && *next++ != ','; /* nop */)
+			++len;
+		if (strncmp(p, KEXGSS, sizeof(KEXGSS "") - 1) == 0)
+			continue;
+		if ((sshbuf_len(buf) > 0 &&
+			(r = sshbuf_put_u8(buf, ',')) != 0) ||
+		    (r = sshbuf_put(buf, p, len)) != 0)
+			fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	}
+	if ((r = sshbuf_put_u8(buf, '\0')) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+
+	/* Realloc and update */
+	p = myproposal[PROPOSAL_KEX_ALGS];
+	p = reallocarray(p, 1, sshbuf_len(buf));
+	if (p == NULL) {
+		sshbuf_free(buf);
+		return SSH_ERR_ALLOC_FAIL;
+	}
+	myproposal[PROPOSAL_KEX_ALGS] = p;
+	if ((r = sshbuf_get(buf, p, sshbuf_len(buf))) != 0)
+		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	sshbuf_free(buf);
+
+	if (!gss)
+		return 0;
+
+	/*
+	 * We support GSSKEX.  If we support no other host keys, enable "null"
+	 */
+	p = myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS];
+	if (p == NULL || *p == '\0') {
+		char *null = strdup("null");
+
+		if (null == NULL)
+		    return SSH_ERR_ALLOC_FAIL;
+		myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = null;
+		return 0;
+	}
+
+	if (kex->server)
+		return 0;
+
+	/*
+	 * Append "null" key algorithm if not yet offered, this is "sticky".
+	 */
+	for (next = p; *p; p = next) {
+		for (len = 0; *next != '\0' && *next++ != ','; /* nop */)
+			++len;
+		if (strncmp(p, "null", len > 4 ? len : 4) == 0)
+			return 0;
+	}
+
+	/* Realloc and update */
+	p = myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS];
+	len = strlen(p) + sizeof(",null");
+	p = reallocarray(p, 1, len);
+	if (p == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = p;
+	strlcat(p, ",null", len);
+	return 0;
+}
+#endif /* GSSAPI */
+
+static int
+dont_verify(struct sshkey *hostkey, struct ssh *ssh)
+{
+	return 0;
+}
+
+void
+kex_authenticated(struct ssh *ssh)
+{
+	ssh->kex->verify_host_key = dont_verify;
+}
 
 char *
 kex_alg_list(char sep)
 {
 	char *ret = NULL, *tmp;
 	size_t nlen, rlen = 0;
-	const struct kexalg *k;
+	const struct kexalg *k = kexalgs;
+	const struct kexalg *morealgs = kexalg_prefixes;
 
-	for (k = kexalgs; k->name != NULL; k++) {
+	while (k->name != NULL) {
 		if (ret != NULL)
 			ret[rlen++] = sep;
 		nlen = strlen(k->name);
@@ -132,6 +244,10 @@ kex_alg_list(char sep)
 		ret = tmp;
 		memcpy(ret + rlen, k->name, nlen + 1);
 		rlen += nlen;
+		if ((++k)->name == NULL && morealgs) {
+			k = morealgs;
+			morealgs = NULL;
+		}
 	}
 	return ret;
 }
@@ -143,6 +259,10 @@ kex_alg_by_name(const char *name)
 
 	for (k = kexalgs; k->name != NULL; k++) {
 		if (strcmp(k->name, name) == 0)
+			return k;
+	}
+	for (k = kexalg_prefixes; k->name != NULL; k++) {
+		if (strncmp(k->name, name, strlen(k->name)) == 0)
 			return k;
 	}
 	return NULL;
@@ -504,6 +624,29 @@ kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 	return 0;
 }
 
+static int
+run_hooks(struct ssh *ssh)
+{
+	struct kex *kex = ssh->kex;
+	struct kexhooks *p;
+	char **myproposal;
+	int r;
+
+	if (kex->hooks == NULL)
+		return 0;
+
+	if ((r = kex_buf2prop(kex->my, NULL, &myproposal)) != 0)
+		return r;
+
+	for (p = kex->hooks; r == 0 && p; p = p->next)
+		r = p->hook(ssh, p->arg, myproposal);
+	if (r == 0)
+		r = kex_prop2buf(kex->my, myproposal);
+	kex_prop_free(myproposal);
+
+	return r;
+}
+
 int
 kex_send_kexinit(struct ssh *ssh)
 {
@@ -516,6 +659,10 @@ kex_send_kexinit(struct ssh *ssh)
 	if (kex->flags & KEX_INIT_SENT)
 		return 0;
 	kex->done = 0;
+
+	/* Last opportunity to modify kex->my before it is used below */
+	if ((r = run_hooks(ssh)) != 0)
+		return r;
 
 	/* generate a random cookie */
 	if (sshbuf_len(kex->my) < KEX_COOKIE_LEN)
@@ -652,6 +799,9 @@ kex_free(struct kex *kex)
 		kex->newkeys[mode] = NULL;
 	}
 	sshbuf_free(kex->peer);
+#ifdef GSSAPI
+	ssh_free_kexgss(&kex->gss);
+#endif /* GSSAPI */
 	sshbuf_free(kex->my);
 	sshbuf_free(kex->client_version);
 	sshbuf_free(kex->server_version);
@@ -660,6 +810,7 @@ kex_free(struct kex *kex)
 	free(kex->failed_choice);
 	free(kex->hostkey_alg);
 	free(kex->name);
+	kex_free_hooks(kex->hooks);
 	free(kex);
 }
 
@@ -689,6 +840,36 @@ kex_setup(struct ssh *ssh, char *proposal[PROPOSAL_MAX])
 		return r;
 	}
 	return 0;
+}
+
+int
+kex_add_hook(struct ssh *ssh, int (*hook)(struct ssh *, void *, char **),
+    void *arg)
+{
+	struct kexhooks **p = &ssh->kex->hooks;
+
+	/* Hooks run in the same order as registered */
+	while (p[0])
+		p = &(p[0]->next);
+
+	p[0] = calloc(1, sizeof(*p[0]));
+	if (p[0] == NULL)
+		return SSH_ERR_ALLOC_FAIL;
+	p[0]->next = NULL;
+	p[0]->hook = hook;
+	p[0]->arg = arg;
+	return 0;
+}
+
+static void
+kex_free_hooks(struct kexhooks *hooks)
+{
+	struct kexhooks *next;
+
+	for (; hooks; hooks = next) {
+		next = hooks->next;
+		free(hooks);
+	}
 }
 
 /*

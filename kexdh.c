@@ -48,10 +48,16 @@ kex_dh_keygen(struct kex *kex)
 {
 	switch (kex->kex_type) {
 	case KEX_DH_GRP1_SHA1:
+#ifdef GSSAPI
+	case KEX_GSS_GRP1_SHA1:
+#endif
 		kex->dh = dh_new_group1();
 		break;
 	case KEX_DH_GRP14_SHA1:
 	case KEX_DH_GRP14_SHA256:
+#ifdef GSSAPI
+	case KEX_GSS_GRP14_SHA1:
+#endif
 		kex->dh = dh_new_group14();
 		break;
 	case KEX_DH_GRP16_SHA512:
@@ -193,6 +199,7 @@ kex_dh_dec(struct kex *kex, const struct sshbuf *dh_blob,
 	*shared_secretp = buf;
 	buf = NULL;
  out:
+	BN_free(dh_pub);
 	DH_free(kex->dh);
 	kex->dh = NULL;
 	sshbuf_free(buf);

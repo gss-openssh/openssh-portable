@@ -49,6 +49,8 @@
 # define EC_POINT	void
 #endif /* WITH_OPENSSL */
 
+#include "ssh-gss.h"
+
 #define KEX_COOKIE_LEN	16
 
 #define	KEX_DH1				"diffie-hellman-group1-sha1"
@@ -103,11 +105,20 @@ enum kex_exchange {
 	KEX_ECDH_SHA2,
 	KEX_C25519_SHA256,
 	KEX_KEM_SNTRUP4591761X25519_SHA512,
+	KEX_GSS_GRP1_SHA1,
+	KEX_GSS_GRP14_SHA1,
+	KEX_GSS_GEX_SHA1,
 	KEX_MAX
 };
 
 #define KEX_INIT_SENT	0x0001
 #define KEX_INITIAL	0x0002
+
+struct kexhooks {
+	struct kexhooks *next;
+	int	(*hook)(struct ssh *, void *, char **);
+	void	*arg;
+};
 
 struct sshenc {
 	char	*name;
@@ -154,6 +165,8 @@ struct kex {
 	u_int	flags;
 	int	hash_alg;
 	int	ec_nid;
+	struct kexgss  gss;
+	struct kexhooks *hooks;
 	char	*failed_choice;
 	int	(*verify_host_key)(struct sshkey *, struct ssh *);
 	struct sshkey *(*load_host_public_key)(int, int, struct ssh *);
@@ -201,8 +214,36 @@ int	 kex_start_rekex(struct ssh *);
 
 int	 kexgex_client(struct ssh *);
 int	 kexgex_server(struct ssh *);
+int	 kexgex_client_init(struct ssh *, const char *);
+int	 kexgex_client_genkey(struct ssh *);
+int	 kex_dh_gex_request(int, u_int32_t, struct ssh *);
 int	 kex_gen_client(struct ssh *);
 int	 kex_gen_server(struct ssh *);
+
+typedef	 int kex_dec_hash_fn_t(struct ssh *, const struct sshbuf *,
+    const struct sshbuf *, struct sshbuf **, u_char *, size_t *);
+kex_dec_hash_fn_t	kex_gen_dec_hash_client;
+kex_dec_hash_fn_t	kex_gex_dec_hash_client;
+
+typedef	 int kex_enc_hash_fn_t(struct ssh *, const struct sshbuf *,
+    struct sshbuf **, const struct sshbuf *, struct sshbuf **, u_char *,
+    size_t *);
+kex_enc_hash_fn_t	kex_gen_enc_hash_server;
+kex_enc_hash_fn_t	kex_gex_enc_hash_server;
+
+
+#ifdef GSSAPI
+int	 kexgss_client(struct ssh *);
+int	 kexgss_server(struct ssh *);
+int	 kexgss_client_hook(struct ssh *, void *, char **);
+int	 kexgss_server_hook(struct ssh *, void *, char **);
+int	 kex_prop_update_gss(struct ssh *, char *, char **);
+#endif
+
+void	 kex_authenticated(struct ssh *);
+
+int	 kex_setup(struct ssh *, char *[PROPOSAL_MAX]);
+int	 kex_add_hook(struct ssh *, int (*)(struct ssh *, void *, char **), void *);
 
 int	 kex_dh_keypair(struct kex *);
 int	 kex_dh_enc(struct kex *, const struct sshbuf *, struct sshbuf **,
