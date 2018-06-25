@@ -184,6 +184,18 @@ static const struct sock_filter preauth_insns[] = {
 #ifdef __NR_getpid
 	SC_ALLOW(__NR_getpid),
 #endif
+#ifdef __NR_getuid
+	SC_ALLOW(__NR_getuid),
+#endif
+#ifdef __NR_getuid32
+	SC_ALLOW(__NR_getuid32),
+#endif
+#ifdef __NR_geteuid
+	SC_ALLOW(__NR_geteuid),
+#endif
+#ifdef __NR_geteuid32
+	SC_ALLOW(__NR_geteuid32),
+#endif
 #ifdef __NR_getrandom
 	SC_ALLOW(__NR_getrandom),
 #endif
