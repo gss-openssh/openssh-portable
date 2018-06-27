@@ -1,3 +1,33 @@
+openssh (1001:7.7p1+ts1) unstable; urgency=medium
+
+  * Rebased on 7.7p1
+  * Debian build scaffolding from stretch
+  * Dropped udeb support
+  * Build with Heimdal and OpenSSL from /opt
+  * Don't bother with gnome askpass
+  * HPN OpenSSL 1.1 portability patch
+  * More OpenSSL >= 1.1.0 portability
+  * HPN DynWinNoneSwitch-14.15 patch
+  * HPN PeakTput-14.15 patch
+  * Log server-side GSSAPI errors.
+  * Fixes for ssh_gssapi_credentials_updated()
+  * Allow GSSAPI work to localhost by using actual hostname
+  * Do not gss rekey if not delegating creds
+  * GSS unused variables
+  * GSS whitespace and formatting
+  * Construct GSS proposals on the fly
+  * Improved GSS need for rekey detection.
+  * Add comment about gss_inquire_cred() and Heimdal.
+  * Overhaul GSSAPI kex state.
+  * Client delegation of credentials can take user into account.
+  * Add option to disable storing non an2ln user credentials
+  * Turn off hostkey verification after gss-keyex
+  * Temporary: backwards-compatible key exchange
+  * Log use of deprecated algorithms
+  * Avoid unduly expanding mux socket name length
+
+ -- Viktor Dukhovni <viktor@twosigma.com>  Thu, 09 Aug 2018 00:28:10 +0000
+
 openssh (1:7.7p1-3) UNRELEASED; urgency=medium
 
   [ Colin Watson ]
