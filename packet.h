@@ -104,6 +104,7 @@ void	 ssh_packet_set_input_hook(struct ssh *, ssh_packet_hook_fn *, void *);
 void	 ssh_packet_clear_keys(struct ssh *);
 void	 ssh_clear_newkeys(struct ssh *, int);
 
+int      ssh_packet_authentication_state(const struct ssh *);
 int	 ssh_packet_is_rekeying(struct ssh *);
 void     ssh_packet_set_protocol_flags(struct ssh *, u_int);
 u_int	 ssh_packet_get_protocol_flags(struct ssh *);

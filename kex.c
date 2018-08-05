@@ -59,6 +59,7 @@
 #include "ssherr.h"
 #include "sshbuf.h"
 #include "digest.h"
+#include "myproposal.h"
 
 #ifdef GSSAPI
 #include "ssh-gss.h"
@@ -223,6 +224,53 @@ void
 kex_authenticated(struct ssh *ssh)
 {
 	ssh->kex->verify_host_key = dont_verify;
+}
+
+static char *deprecated(char *alg, char *good_algs)
+{
+	char *tmp;
+
+	free(tmp = match_list(alg, good_algs, NULL));
+	return tmp ? NULL : alg;
+}
+
+static void log_deprecated(struct ssh *ssh)
+{
+	struct kex *kex = ssh->kex;
+	struct newkeys *newkeys;
+	u_int mode;
+	const struct kexalg *k;
+	char *deprecated_kex = NULL;
+	char *deprecated_enc = NULL;
+	char *deprecated_mac = NULL;
+
+	/*
+	 * We whitelist the GSSAPI prefixes
+	 */
+	for (k = kexalg_prefixes; k->name != NULL; k++) {
+		if (strncmp(k->name, kex->name, strlen(k->name)) == 0)
+			break;
+	}
+	if (k->name == NULL)
+		deprecated_kex = deprecated(kex->name, KEX_SERVER_KEX);
+
+	for (mode = 0; mode < MODE_MAX; mode++) {
+		newkeys = kex->newkeys[mode];
+		deprecated_enc = deprecated(newkeys->enc.name, KEX_SERVER_ENCRYPT);
+		if (cipher_authlen(newkeys->enc.cipher) == 0)
+		    deprecated_mac = deprecated(newkeys->mac.name, KEX_SERVER_MAC);
+	}
+
+	if (!deprecated_kex && !deprecated_enc && !deprecated_mac)
+		return;
+	logit("using deprecated algorithms: %s: version=%s;%s%s%s%s%s%s",
+	    ssh_remote_ipaddr(ssh), sshbuf_ptr(kex->client_version),
+	    deprecated_kex ? " kex=" : "",
+	    deprecated_kex ? deprecated_kex : "",
+	    deprecated_enc ? " enc=" : "",
+	    deprecated_enc ? deprecated_enc : "",
+	    deprecated_mac ? " mac=" : "",
+	    deprecated_mac ? deprecated_mac : "");
 }
 
 char *
@@ -727,10 +775,17 @@ kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 	if ((r = kex_choose_conf(ssh)) != 0)
 		return r;
 
-	if (kex->kex_type < KEX_MAX && kex->kex[kex->kex_type] != NULL)
-		return (kex->kex[kex->kex_type])(ssh);
+	if (kex->kex_type >= KEX_MAX || kex->kex[kex->kex_type] == NULL)
+		return SSH_ERR_INTERNAL_ERROR;
 
-	return SSH_ERR_INTERNAL_ERROR;
+	/*
+	 * On the server, log deprecated algos, but just for the initial
+	 * key exchange.
+	 */
+	if (kex->server && ssh_packet_authentication_state(ssh) == 0)
+		log_deprecated(ssh);
+
+	return (kex->kex[kex->kex_type])(ssh);
 }
 
 struct kex *

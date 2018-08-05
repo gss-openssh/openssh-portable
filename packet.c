@@ -926,6 +926,14 @@ ssh_set_newkeys(struct ssh *ssh, int mode)
 	return 0;
 }
 
+int
+ssh_packet_authentication_state(const struct ssh *ssh)
+{
+	struct session_state *state = ssh->state;
+
+	return state->after_authentication;
+}
+
 #define MAX_PACKETS	(1U<<31)
 static int
 ssh_packet_need_rekeying(struct ssh *ssh, u_int outbound_packet_len)
