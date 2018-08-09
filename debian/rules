@@ -128,10 +128,6 @@ override_dh_auto_configure-indep:
 override_dh_auto_build-arch:
 	$(MAKE) -C debian/build-deb $(PARALLEL) ASKPASS_PROGRAM='/usr/bin/ssh-askpass'
 
-ifeq ($(filter pkg.openssh.nognome,$(DEB_BUILD_PROFILES)),)
-	$(MAKE) -C contrib gnome-ssh-askpass3 CC='$(CC) $(CPPFLAGS) $(CFLAGS) -Wall -Wl,--as-needed $(LDFLAGS)' PKG_CONFIG=$(PKG_CONFIG)
-endif
-
 override_dh_auto_build-indep:
 
 override_dh_auto_test-arch:
