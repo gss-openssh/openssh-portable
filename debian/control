@@ -3,10 +3,10 @@ Section: net
 Priority: standard
 Maintainer: Debian OpenSSH Maintainers <debian-ssh@lists.debian.org>
 Build-Depends: autotools-dev,
-               debhelper (>= 9.20160709~),
+               debhelper,
                dh-autoreconf,
                dh-exec,
-               dpkg-dev (>= 1.16.1~),
+               dpkg-dev,
                libaudit-dev [linux-any],
                libedit-dev,
                libgtk-3-dev <!pkg.openssh.nognome>,
@@ -17,7 +17,7 @@ Build-Depends: autotools-dev,
                libsystemd-dev [linux-any],
                libwrap0-dev | libwrap-dev,
                pkg-config,
-               zlib1g-dev (>= 1:1.2.3),
+               zlib1g-dev,
 Standards-Version: 4.1.0
 Uploaders: Colin Watson <cjwatson@debian.org>,
            Matthew Vernon <matthew@debian.org>,
@@ -27,8 +27,8 @@ Vcs-Browser: https://salsa.debian.org/ssh-team/openssh
 
 Package: openssh-client
 Architecture: any
-Depends: adduser (>= 3.10),
-         dpkg (>= 1.7.0),
+Depends: adduser,
+         dpkg,
          passwd,
          ${misc:Depends},
          ${shlibs:Depends},
@@ -70,15 +70,15 @@ Package: openssh-server
 Priority: optional
 Architecture: any
 Pre-Depends: ${misc:Pre-Depends},
-Depends: adduser (>= 3.9),
-         dpkg (>= 1.9.0),
-         libpam-modules (>= 0.72-9),
-         libpam-runtime (>= 0.76-14),
-         lsb-base (>= 4.1+Debian3),
+Depends: adduser,
+         dpkg,
+         libpam-modules,
+         libpam-runtime,
+         lsb-base,
          openssh-client (= ${binary:Version}),
          openssh-sftp-server,
          procps,
-         ucf (>= 0.28),
+         ucf,
          ${misc:Depends},
          ${shlibs:Depends},
 Recommends: libpam-systemd,
@@ -156,7 +156,7 @@ Description: secure shell (SSH) sftp server module, for SFTP access from remote 
 Package: ssh
 Priority: optional
 Architecture: all
-Pre-Depends: dpkg (>= 1.17.5),
+Pre-Depends: dpkg,
 Depends: openssh-client (>= ${binary:Version}),
          openssh-server (>= ${binary:Version}),
          ${misc:Depends},
@@ -181,34 +181,3 @@ Description: interactive X program to prompt users for a passphrase for ssh-add
  .
  You probably want the ssh-askpass package instead, but this is
  provided to add to your choice and/or confusion.
-
-Package: openssh-client-udeb
-Build-Profiles: <!noudeb>
-Package-Type: udeb
-Section: debian-installer
-Priority: optional
-Architecture: any
-Depends: ${shlibs:Depends},
-XB-Installer-Menu-Item: 99999
-Description: secure shell client for the Debian installer
- This is the portable version of OpenSSH, a free implementation of
- the Secure Shell protocol as specified by the IETF secsh working
- group.
- .
- This package provides the ssh client for use in debian-installer.
-
-Package: openssh-server-udeb
-Build-Profiles: <!noudeb>
-Package-Type: udeb
-Section: debian-installer
-Priority: optional
-Architecture: any
-Depends: ${shlibs:Depends},
-Description: secure shell server for the Debian installer
- This is the portable version of OpenSSH, a free implementation of
- the Secure Shell protocol as specified by the IETF secsh working
- group.
- .
- This package provides the sshd server for use in debian-installer.
- Since it is expected to be used in specialized situations (e.g. S/390
- installs with no console), it does not provide any configuration.
