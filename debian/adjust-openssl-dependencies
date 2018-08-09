@@ -5,17 +5,14 @@
 client=debian/openssh-client.substvars
 server=debian/openssh-server.substvars
 
-libssl_version="$(dpkg-query -W libssl1.0-dev 2>/dev/null | cut -f2)"
+libssl_version="$(dpkg-query -W libssl-opt-dev 2>/dev/null | cut -f2)"
 if [ -z "$libssl_version" ]; then
-	libssl_version="$(dpkg-query -W libssl-dev 2>/dev/null | cut -f2)"
-fi
-if [ -z "$libssl_version" ]; then
-	echo "Can't find libssl-dev version; leaving dependencies alone."
+	echo "Can't find libssl-opt-dev version; leaving dependencies alone."
 	exit 0
 fi
 libssl_version="$(echo "$libssl_version" | sed 's/[a-z-].*//')"
 
-libssl_package="$(sed -n 's/.*[= ]\(libssl[0-9][a-z0-9+.-]*\).*/\1/p' "$client")"
+libssl_package="$(sed -n 's/.*[= ]\(libssl-opt[0-9][a-z0-9+.-]*\).*/\1/p' "$client")"
 if [ "$libssl_package" ]; then
 	new_dep="$libssl_package (>= $libssl_version)"
 	sed -i "/^shlibs:Depends=/s/\$/, $new_dep/" "$client"

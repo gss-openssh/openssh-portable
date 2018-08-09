@@ -82,11 +82,13 @@ confflags += --without-hardening
 endif
 
 # Options specific to the deb build.
+SSLDIR = /opt/openssl/1.0
+KRB5DIR = /opt/heimdal
 confflags += --with-tcp-wrappers
 confflags += --with-pam
 confflags += --with-libedit
-confflags += --with-kerberos5=/usr
-confflags += --with-ssl-engine
+confflags += --with-kerberos5=$(KRB5DIR)
+confflags += --with-ssl-dir=$(SSLDIR)
 ifeq ($(DEB_HOST_ARCH_OS),linux)
 confflags += --with-selinux
 confflags += --with-audit=linux
@@ -104,7 +106,7 @@ cflags += -DSSH_EXTRAVERSION=\"$(SSH_EXTRAVERSION)\"
 confflags += --with-cflags='$(cflags)'
 
 # Linker flags.
-confflags += --with-ldflags='$(strip -Wl,--as-needed $(LDFLAGS))'
+confflags += --with-ldflags='$(strip -Wl,--as-needed $(default_ldflags)) -Wl,-rpath,$(KRB5DIR)/lib -Wl,-rpath,$(SSLDIR)/lib'
 
 %:
 	dh $@ --with=autoreconf,systemd
