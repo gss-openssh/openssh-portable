@@ -82,7 +82,7 @@ confflags += --without-hardening
 endif
 
 # Options specific to the deb build.
-SSLDIR = /opt/openssl/1.0
+SSLDIR = /opt/openssl/1.1
 KRB5DIR = /opt/heimdal
 confflags += --with-tcp-wrappers
 confflags += --with-pam

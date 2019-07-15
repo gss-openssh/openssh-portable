@@ -1,3 +1,10 @@
+openssh (1001:7.9p1+ts1) unstable; urgency=medium
+
+  * Rebased on 7.9p1
+  * Build with OpenSSL 1.1
+
+ -- Viktor Dukhovni <viktor@twosigma.com>  Mon, 15 Jul 2019 09:56:57 +0000
+
 openssh (1001:7.7p1+ts1) unstable; urgency=medium
 
   * Rebased on 7.7p1
