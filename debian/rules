@@ -159,7 +159,7 @@ override_dh_auto_install-indep:
 override_dh_install-arch:
 	rm -f debian/tmp/etc/ssh/sshd_config
 
-	dh_install -Nopenssh-client-udeb -Nopenssh-server-udeb --fail-missing
+	dh_install --fail-missing
 	# Remove version control tags to avoid unnecessary conffile
 	# resolution steps for administrators.
 	sed -i '/\$$OpenBSD:/d' \
@@ -210,7 +210,7 @@ override_dh_gencontrol:
 	dh_gencontrol -- -V'openssh-server:Recommends=$(server_recommends)'
 
 override_dh_builddeb:
-	dh_builddeb -- -Zxz
+	dh_builddeb -- -Zgzip
 
 debian/faq.html:
 	wget -O - http://www.openssh.com/faq.html | \

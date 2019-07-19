@@ -1,3 +1,0 @@
-scp usr/bin
-sftp usr/bin
-ssh usr/bin
