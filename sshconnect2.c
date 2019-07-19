@@ -78,8 +78,6 @@
 #endif
 
 /* import */
-extern char *client_version_string;
-extern char *server_version_string;
 extern Options options;
 
 /*
