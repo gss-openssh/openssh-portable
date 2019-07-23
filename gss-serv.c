@@ -53,20 +53,29 @@ extern ServerOptions options;
 
 extern ServerOptions options;
 
+/*
+ * XXX gssapi_client shouldn't be a global of any kind.  It should live in both
+ * the struct ssh, which hopefully will have the struct kex (it does) and the
+ * Authctxt (it doesn't, because that refactoring hasn't happened yet).
+ *
+ * Until then we'll have to do things like do_pam_putenv() here that really
+ * belong somewhere else.
+ */
+
 static ssh_gssapi_client gssapi_client =
     { GSS_C_EMPTY_BUFFER, GSS_C_EMPTY_BUFFER,
-    GSS_C_NO_CREDENTIAL, GSS_C_NO_NAME,  NULL,
-    {NULL, NULL, NULL, NULL, NULL}, 0, 0};
+      GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_OID, GSS_C_NO_NAME, NULL,
+      {NULL}, 0, 0};
 
 ssh_gssapi_mech gssapi_null_mech =
-    { NULL, NULL, {0, NULL}, NULL, NULL, NULL, NULL, NULL};
+    { NULL, NULL, {0, NULL}, NULL, NULL, NULL, NULL, NULL };
 
 #ifdef KRB5
 extern ssh_gssapi_mech gssapi_kerberos_mech;
 #endif
 
 ssh_gssapi_mech* supported_mechs[]= {
-#ifdef KRB5
+#if defined(KRB5)
 	&gssapi_kerberos_mech,
 #endif
 	&gssapi_null_mech,
@@ -207,11 +216,10 @@ ssh_gssapi_accept_ctx(Gssctxt *ctx, gss_buffer_desc *recv_tok,
     gss_buffer_desc *send_tok, OM_uint32 *flags)
 {
 	OM_uint32 status;
-	gss_OID mech;
 
 	ctx->major = gss_accept_sec_context(&ctx->minor,
 	    &ctx->context, ctx->creds, recv_tok,
-	    GSS_C_NO_CHANNEL_BINDINGS, &ctx->client, &mech,
+	    GSS_C_NO_CHANNEL_BINDINGS, &ctx->client, &ctx->oid,
 	    send_tok, flags, NULL, &ctx->client_creds);
 
 	if (GSS_ERROR(ctx->major))
@@ -237,67 +245,6 @@ ssh_gssapi_accept_ctx(Gssctxt *ctx, gss_buffer_desc *recv_tok,
 	return (status);
 }
 
-/*
- * This parses an exported name, extracting the mechanism specific portion
- * to use for ACL checking. It verifies that the name belongs the mechanism
- * originally selected.
- */
-static OM_uint32
-ssh_gssapi_parse_ename(Gssctxt *ctx, gss_buffer_t ename, gss_buffer_t name)
-{
-	u_char *tok;
-	OM_uint32 offset;
-	OM_uint32 oidl;
-
-	tok = ename->value;
-
-	/*
-	 * Check that ename is long enough for all of the fixed length
-	 * header, and that the initial ID bytes are correct
-	 */
-
-	if (ename->length < 6 || memcmp(tok, "\x04\x01", 2) != 0)
-		return GSS_S_FAILURE;
-
-	/*
-	 * Extract the OID, and check it. Here GSSAPI breaks with tradition
-	 * and does use the OID type and length bytes. To confuse things
-	 * there are two lengths - the first including these, and the
-	 * second without.
-	 */
-
-	oidl = get_u16(tok+2); /* length including next two bytes */
-	oidl = oidl-2; /* turn it into the _real_ length of the variable OID */
-
-	/*
-	 * Check the BER encoding for correct type and length, that the
-	 * string is long enough and that the OID matches that in our context
-	 */
-	if (tok[4] != 0x06 || tok[5] != oidl ||
-	    ename->length < oidl+6 ||
-	    !ssh_gssapi_check_oid(ctx, tok+6, oidl))
-		return GSS_S_FAILURE;
-
-	offset = oidl+6;
-
-	if (ename->length < offset+4)
-		return GSS_S_FAILURE;
-
-	name->length = get_u32(tok+offset);
-	offset += 4;
-
-	if (UINT_MAX - offset < name->length)
-		return GSS_S_FAILURE;
-	if (ename->length < offset+name->length)
-		return GSS_S_FAILURE;
-
-	name->value = xmalloc(name->length+1);
-	memcpy(name->value, tok+offset, name->length);
-	((char *)name->value)[name->length] = 0;
-
-	return GSS_S_COMPLETE;
-}
-
 /* Extract the client details from a given context. This can only reliably
  * be called once for a context */
 
@@ -308,7 +255,10 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 	int i = 0;
 	int equal = 0;
 	gss_name_t new_name = GSS_C_NO_NAME;
-	gss_buffer_desc ename = GSS_C_EMPTY_BUFFER;
+
+	client->mechoid = ctx->oid;
+	if (client->initial_mechoid == GSS_C_NO_OID)
+	    client->initial_mechoid = ctx->oid;
 
 	if (options.gss_store_rekey && client->used && ctx->client_creds) {
 		if (client->mech->oid.length != ctx->oid->length ||
@@ -375,19 +325,6 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 		return (ctx->major);
 	}
 
-	if ((ctx->major = gss_export_name(&ctx->minor, ctx->client,
-	    &ename))) {
-		ssh_gssapi_error(ctx);
-		return (ctx->major);
-	}
-
-	if ((ctx->major = ssh_gssapi_parse_ename(ctx,&ename,
-	    &client->exportedname))) {
-		return (ctx->major);
-	}
-
-	gss_release_buffer(&ctx->minor, &ename);
-
 	/* We can't copy this structure, so we just move the pointer to it */
 	client->creds = ctx->client_creds;
 	ctx->client_creds = GSS_C_NO_CREDENTIAL;
@@ -398,12 +335,6 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 void
 ssh_gssapi_cleanup_creds(void)
 {
-	if (gssapi_client.store.filename != NULL) {
-		/* Unlink probably isn't sufficient */
-		debug("removing gssapi cred file\"%s\"",
-		    gssapi_client.store.filename);
-		unlink(gssapi_client.store.filename);
-	}
 }
 
 /* As user */
@@ -423,14 +354,6 @@ ssh_gssapi_storecreds(void)
 void
 ssh_gssapi_do_child(char ***envp, u_int *envsizep)
 {
-
-	if (gssapi_client.store.envvar != NULL &&
-	    gssapi_client.store.envval != NULL) {
-		debug("Setting %s to %s", gssapi_client.store.envvar,
-		    gssapi_client.store.envval);
-		child_set_env(envp, envsizep, gssapi_client.store.envvar,
-		    gssapi_client.store.envval);
-	}
 	if (gssapi_client.exportedname.length != 0 &&
 	    gssapi_client.exportedname.value != NULL) {
 		debug("Setting %s to %s", "SSH_GSSAPI_NAME",
@@ -446,50 +369,33 @@ ssh_gssapi_userok(char *user, struct passwd *pw)
 {
 	OM_uint32 lmin;
 
-	if (gssapi_client.exportedname.length == 0 ||
-	    gssapi_client.exportedname.value == NULL) {
-		debug("No suitable client data");
-		return 0;
-	}
-
-#ifdef HAVE_GSS_LOCALNAME
-	/*
-	 * Don't store delegated credentials when the authenticated principal's
-	 * localname (an2ln mapping) is different from the target user.
-	 */
-	if (gssapi_client.mech && gssapi_client.creds &&
-	    !options.gss_store_nonan2ln) {
-		gss_buffer_desc localname = GSS_C_EMPTY_BUFFER;
-		OM_uint32 lmaj = gss_localname(&lmin, gssapi_client.name,
-		    &gssapi_client.mech->oid, &localname);
-
-		if (lmaj != GSS_S_COMPLETE ||
-		    localname.length != strlen(user) ||
-		    strncmp(localname.value, user, localname.length) != 0) {
-			gss_release_cred(&lmin, &gssapi_client.creds);
-			gssapi_client.creds = GSS_C_NO_CREDENTIAL;
-		}
-		(void) gss_release_buffer(&lmin, &localname);
-	}
-#endif
-
-	if (gssapi_client.mech && gssapi_client.mech->userok)
-		if ((*gssapi_client.mech->userok)(&gssapi_client, user)) {
-			gssapi_client.used = 1;
+	if (gssapi_client.mech && gssapi_client.mech->userok &&
+	    (*gssapi_client.mech->userok)(&gssapi_client, user)) {
+		gssapi_client.used = 1;
+		if (!gssapi_client.creds)
+			return 1;
+		/*
+		 * Don't store delegated credentials when the authenticated
+		 * principal's localname (an2ln mapping) is different from the
+		 * target user.
+		 */
+		if (options.gss_store_nonan2ln || !gssapi_client.mech->isuser ||
+		    gssapi_client.mech->isuser(&gssapi_client, user)) {
 			gssapi_client.store.owner = pw;
 			return 1;
-		} else {
-			/* Destroy delegated credentials if userok fails */
-			gss_release_buffer(&lmin, &gssapi_client.displayname);
-			gss_release_buffer(&lmin, &gssapi_client.exportedname);
-			gss_release_cred(&lmin, &gssapi_client.creds);
-			explicit_bzero(&gssapi_client,
-			    sizeof(ssh_gssapi_client));
-			return 0;
 		}
-	else
-		debug("ssh_gssapi_userok: Unknown GSSAPI mechanism");
-	return (0);
+		debug2("%s: releasing non-matching creds", __func__);
+		gss_release_cred(&lmin, &gssapi_client.creds);
+		return 1;
+	}
+
+	/* Destroy delegated credentials if userok failed or was unavailable */
+	if (!gssapi_client.mech || !gssapi_client.mech->userok)
+		debug("GSS-API mechanism does not support gss_userok()");
+	gss_release_buffer(&lmin, &gssapi_client.displayname);
+	gss_release_cred(&lmin, &gssapi_client.creds);
+	explicit_bzero(&gssapi_client, sizeof(ssh_gssapi_client));
+	return 0;
 }
 
 /* These bits are only used for rekeying. The unpriviledged child is running
@@ -514,20 +420,15 @@ void
 ssh_gssapi_rekey_creds(void)
 {
 	int ok;
-	int ret;
 #ifdef USE_PAM
 	pam_handle_t *pamh = NULL;
 	struct pam_conv pamconv = {ssh_gssapi_simple_conv, NULL};
-	char *envstr;
 #endif
 
-	if (gssapi_client.store.filename == NULL &&
-	    gssapi_client.store.envval == NULL &&
-	    gssapi_client.store.envvar == NULL)
+	if (!gssapi_client.store.owner)
 		return;
 
 	ok = PRIVSEP(ssh_gssapi_update_creds(&gssapi_client.store));
-
 	if (!ok)
 		return;
 
@@ -538,23 +439,12 @@ ssh_gssapi_rekey_creds(void)
 	 * for rekeying. So, use our own :)
 	 */
 #ifdef USE_PAM
-	if (!use_privsep) {
-		debug("Not even going to try and do PAM with privsep disabled");
-		return;
-	}
-
-	ret = pam_start("sshd-rekey", gssapi_client.store.owner->pw_name,
-	    &pamconv, &pamh);
-	if (ret)
-		return;
-
-	xasprintf(&envstr, "%s=%s", gssapi_client.store.envvar,
-	    gssapi_client.store.envval);
-
-	ret = pam_putenv(pamh, envstr);
-	if (!ret)
+	if (use_privsep &&
+	    pam_start("sshd-rekey", gssapi_client.store.owner->pw_name,
+	    &pamconv, &pamh) == 0) {
 		pam_setcred(pamh, PAM_REINITIALIZE_CRED);
-	pam_end(pamh, PAM_SUCCESS);
+		pam_end(pamh, PAM_SUCCESS);
+	}
 #endif
 }
 
@@ -580,12 +470,13 @@ ssh_gssapi_update_creds(ssh_gssapi_ccache *store) {
 }
 
 /* Privileged */
-const char *ssh_gssapi_displayname(void)
+char *ssh_gssapi_displayname(void)
 {
 	if (gssapi_client.displayname.length == 0 ||
 	    gssapi_client.displayname.value == NULL)
 		return NULL;
-	return (char *)gssapi_client.displayname.value;
+	return strndup(gssapi_client.displayname.value,
+		       gssapi_client.displayname.length);
 }
 
 #endif

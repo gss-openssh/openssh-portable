@@ -2249,6 +2249,7 @@ main(int ac, char **av)
 #endif
 
 #ifdef GSSAPI
+        /* XXX This belongs in the GSS userauth methods */
 	if (options.gss_authentication) {
 		temporarily_use_uid(authctxt->pw);
 		ssh_gssapi_storecreds();

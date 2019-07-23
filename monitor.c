@@ -1937,7 +1937,7 @@ int
 mm_answer_gss_userok(struct ssh *ssh, int sock, struct sshbuf *m)
 {
 	int r, authenticated;
-	const char *displayname;
+	char *displayname = NULL;
 
 	if (!options.gss_authentication && !options.gss_keyex)
 		fatal("%s: GSSAPI not enabled", __func__);
@@ -1956,6 +1956,7 @@ mm_answer_gss_userok(struct ssh *ssh, int sock, struct sshbuf *m)
 
 	if ((displayname = ssh_gssapi_displayname()) != NULL)
 		auth2_record_info(authctxt, "%s", displayname);
+        free(displayname);
 
 	/* Monitor loop will terminate if authenticated */
 	return (authenticated);
@@ -2011,24 +2012,17 @@ mm_answer_gss_sign(struct ssh *ssh, int socket, struct sshbuf *m)
 
 int
 mm_answer_gss_updatecreds(struct ssh *ssh, int socket, struct sshbuf *m) {
-	ssh_gssapi_ccache store;
 	u_int32_t ok;
+	u_char dummy;
 	int r;
 
 	if (!options.gss_authentication && !options.gss_keyex)
 		fatal("%s: GSSAPI not enabled", __func__);
 
-	if ((r = sshbuf_get_cstring(m, &store.filename, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(m, &store.envvar, NULL)) != 0 ||
-	    (r = sshbuf_get_cstring(m, &store.envval, NULL)) != 0)
-		fatal("%s: buffer error: %s", __func__, ssh_err(r));
+	if ((r = sshbuf_get_u8(m, &dummy)) != 0)
+		fatal("%s: sshbuf_get_u8: %s", __func__, ssh_err(r));
 
-	ok = ssh_gssapi_update_creds(&store);
-
-	free(store.filename);
-	free(store.envvar);
-	free(store.envval);
-
+	ok = ssh_gssapi_update_creds(NULL);
 	sshbuf_reset(m);
 	if ((r = sshbuf_put_u32(m, ok)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));

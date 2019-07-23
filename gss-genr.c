@@ -273,25 +273,11 @@ ssh_gssapi_check_oid(Gssctxt *ctx, void *data, size_t len)
 	    memcmp(ctx->oid->elements, data, len) == 0);
 }
 
-/* Set the contexts OID from a data stream */
-void
-ssh_gssapi_set_oid_data(Gssctxt *ctx, void *data, size_t len)
-{
-	if (ctx->oid != GSS_C_NO_OID) {
-		free(ctx->oid->elements);
-		free(ctx->oid);
-	}
-	ctx->oid = xcalloc(1, sizeof(gss_OID_desc));
-	ctx->oid->length = len;
-	ctx->oid->elements = xmalloc(len);
-	memcpy(ctx->oid->elements, data, len);
-}
-
-/* Set the contexts OID */
+/* Set the context's OID */
 void
 ssh_gssapi_set_oid(Gssctxt *ctx, gss_OID oid)
 {
-	ssh_gssapi_set_oid_data(ctx, oid->elements, oid->length);
+	ctx->oid = oid;
 }
 
 /* All this effort to report an error ... */
@@ -389,11 +375,6 @@ ssh_gssapi_delete_ctx(Gssctxt **ctx)
 		gss_delete_sec_context(&ms, &(*ctx)->context, GSS_C_NO_BUFFER);
 	if ((*ctx)->name != GSS_C_NO_NAME)
 		gss_release_name(&ms, &(*ctx)->name);
-	if ((*ctx)->oid != GSS_C_NO_OID) {
-		free((*ctx)->oid->elements);
-		free((*ctx)->oid);
-		(*ctx)->oid = GSS_C_NO_OID;
-	}
 	if ((*ctx)->creds != GSS_C_NO_CREDENTIAL)
 		gss_release_cred(&ms, &(*ctx)->creds);
 	if ((*ctx)->client != GSS_C_NO_NAME)

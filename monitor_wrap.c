@@ -1053,15 +1053,9 @@ mm_ssh_gssapi_update_creds(ssh_gssapi_ccache *store)
 
 	if ((m = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
-
-	if ((r = sshbuf_put_cstring(m, store->filename ?
-		    store->filename : "")) != 0 ||
-	    (r = sshbuf_put_cstring(m, store->envvar ?
-		    store->envvar : "")) != 0 ||
-	    (r = sshbuf_put_cstring(m, store->envval ?
-		    store->envval : "")) != 0)
+	if ((r = sshbuf_put_u8(m, 0)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	
+
 	mm_request_send(pmonitor->m_recvfd, MONITOR_REQ_GSSUPCREDS, m);
 	mm_request_receive_expect(pmonitor->m_recvfd, MONITOR_ANS_GSSUPCREDS, m);
 

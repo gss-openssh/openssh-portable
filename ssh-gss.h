@@ -93,17 +93,15 @@ struct kexgss {
 #define KEX_GSS_C25519_SHA256_ID			KEXGSS "curve25519-sha256-"
 
 typedef struct {
-	char *filename;
-	char *envvar;
-	char *envval;
 	struct passwd *owner;
-	void *data;
 } ssh_gssapi_ccache;
 
 typedef struct {
 	gss_buffer_desc displayname;
 	gss_buffer_desc exportedname;
 	gss_cred_id_t creds;
+	gss_OID mechoid;
+	gss_OID initial_mechoid;
 	gss_name_t name;
 	struct ssh_gssapi_mech_struct *mech;
 	ssh_gssapi_ccache store;
@@ -116,8 +114,8 @@ typedef struct ssh_gssapi_mech_struct {
 	char *name;
 	gss_OID_desc oid;
 	int (*dochild) (ssh_gssapi_client *);
-	int (*userok) (ssh_gssapi_client *, char *);
-	int (*localname) (ssh_gssapi_client *, char **);
+	int (*userok) (ssh_gssapi_client *, const char *);
+	int (*isuser) (ssh_gssapi_client *, const char *);
 	void (*storecreds) (ssh_gssapi_client *);
 	int (*updatecreds) (ssh_gssapi_ccache *, ssh_gssapi_client *);
 } ssh_gssapi_mech;
@@ -181,7 +179,7 @@ OM_uint32 ssh_gssapi_checkmic(Gssctxt *, gss_buffer_t, gss_buffer_t);
 void ssh_gssapi_do_child(char ***, u_int *);
 void ssh_gssapi_cleanup_creds(void);
 void ssh_gssapi_storecreds(void);
-const char *ssh_gssapi_displayname(void);
+char *ssh_gssapi_displayname(void);
 
 char *ssh_gssapi_server_mechanisms(void);
 int ssh_gssapi_oid_table_ok(void);
@@ -189,6 +187,12 @@ int ssh_gssapi_oid_table_ok(void);
 int ssh_gssapi_update_creds(ssh_gssapi_ccache *store);
 void ssh_gssapi_rekey_creds(void);
 void ssh_free_kexgss(struct kexgss *);
+
+int ssh_gssapi_generic_userok(ssh_gssapi_client *, const char *);
+int ssh_gssapi_generic_isuser(ssh_gssapi_client *, const char *);
+void ssh_gssapi_generic_storecreds(ssh_gssapi_client *);
+int ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *, ssh_gssapi_client *);
+char *ssh_gssapi_generic_clientname(ssh_gssapi_client *);
 
 #endif /* GSSAPI */
 

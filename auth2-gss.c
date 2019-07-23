@@ -284,7 +284,7 @@ input_gssapi_exchange_complete(int type, u_int32_t plen, struct ssh *ssh)
 {
 	Authctxt *authctxt = ssh->authctxt;
 	int r, authenticated;
-	const char *displayname;
+	char *displayname = NULL;
 
 	if (authctxt == NULL || (authctxt->methoddata == NULL && !use_privsep))
 		fatal("No authentication or GSSAPI context");
@@ -303,6 +303,7 @@ input_gssapi_exchange_complete(int type, u_int32_t plen, struct ssh *ssh)
 	if ((!use_privsep || mm_is_monitor()) &&
 	    (displayname = ssh_gssapi_displayname()) != NULL)
 		auth2_record_info(authctxt, "%s", displayname);
+        free(displayname);
 
 	authctxt->postponed = 0;
 	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
@@ -321,7 +322,7 @@ input_gssapi_mic(int type, u_int32_t plen, struct ssh *ssh)
 	int r, authenticated = 0;
 	struct sshbuf *b;
 	gss_buffer_desc mic, gssbuf;
-	const char *displayname;
+	char *displayname = NULL;
 	u_char *p;
 	size_t len;
 
@@ -355,6 +356,7 @@ input_gssapi_mic(int type, u_int32_t plen, struct ssh *ssh)
 	if ((!use_privsep || mm_is_monitor()) &&
 	    (displayname = ssh_gssapi_displayname()) != NULL)
 		auth2_record_info(authctxt, "%s", displayname);
+        free(displayname);
 
 	authctxt->postponed = 0;
 	ssh_dispatch_set(ssh, SSH2_MSG_USERAUTH_GSSAPI_TOKEN, NULL);
