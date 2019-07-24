@@ -1,3 +1,13 @@
+openssh (1001:8.0p1+ts2) unstable; urgency=medium
+
+  * Further GSSAPI patch cleanup
+  * Added SHA2 and curve25519 GSS kex algorithms
+  * Prefer AESGCM over CHACHA20-POLY1305.
+    - This is an interim deviation from upstream
+    - We may ultimately handle this via the config file.
+
+ -- Viktor Dukhovni <viktor@twosigma.com>  Wed, 24 Jul 2019 06:58:54 +0000
+
 openssh (1001:8.0p1+ts1) unstable; urgency=medium
 
   * Rebased on 8.0p1, and refactored GSSAPI patch.
