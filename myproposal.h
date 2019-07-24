@@ -61,7 +61,7 @@
 
 #ifdef OPENSSL_HAVE_EVPGCM
 # define AESGCM_CIPHER_MODES \
-	",aes128-gcm@openssh.com,aes256-gcm@openssh.com"
+	"aes128-gcm@openssh.com,aes256-gcm@openssh.com,"
 #else
 # define AESGCM_CIPHER_MODES
 #endif
@@ -130,9 +130,9 @@
 /* the actual algorithms */
 
 #define KEX_SERVER_ENCRYPT \
+	AESGCM_CIPHER_MODES \
 	"chacha20-poly1305@openssh.com," \
-	"aes128-ctr,aes192-ctr,aes256-ctr" \
-	AESGCM_CIPHER_MODES
+	"aes128-ctr,aes192-ctr,aes256-ctr"
 
 #define KEX_CLIENT_ENCRYPT KEX_SERVER_ENCRYPT
 
