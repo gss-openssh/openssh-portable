@@ -112,6 +112,9 @@ int kex_gen_dec_hash_client(
 # ifdef GSSAPI
 	case KEX_GSS_GRP1_SHA1:
 	case KEX_GSS_GRP14_SHA1:
+	case KEX_GSS_GRP14_SHA256:
+	case KEX_GSS_GRP16_SHA512:
+	case KEX_GSS_GRP18_SHA512:
 # endif
 		r = kex_dh_dec(kex, server_blob, &secbuf);
 		break;
@@ -120,6 +123,9 @@ int kex_gen_dec_hash_client(
 		break;
 #endif
 	case KEX_C25519_SHA256:
+# ifdef GSSAPI
+	case KEX_GSS_C25519_SHA256:
+# endif
 		r = kex_c25519_dec(kex, server_blob, &secbuf);
 		break;
 	case KEX_KEM_SNTRUP4591761X25519_SHA512:
@@ -176,6 +182,9 @@ int kex_gen_enc_hash_server(
 # ifdef GSSAPI
 	case KEX_GSS_GRP1_SHA1:
 	case KEX_GSS_GRP14_SHA1:
+	case KEX_GSS_GRP14_SHA256:
+	case KEX_GSS_GRP16_SHA512:
+	case KEX_GSS_GRP18_SHA512:
 # endif
 		r = kex_dh_enc(kex, client_pubkey, &pubbuf, &secbuf);
 		break;
@@ -184,6 +193,9 @@ int kex_gen_enc_hash_server(
 		break;
 #endif
 	case KEX_C25519_SHA256:
+# ifdef GSSAPI
+	case KEX_GSS_C25519_SHA256:
+# endif
 		r = kex_c25519_enc(kex, client_pubkey, &pubbuf, &secbuf);
 		break;
 	case KEX_KEM_SNTRUP4591761X25519_SHA512:

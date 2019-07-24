@@ -1744,6 +1744,10 @@ monitor_apply_keystate(struct ssh *ssh, struct monitor *pmonitor)
 			kex->kex[KEX_GSS_GRP1_SHA1] = kexgss_server;
 			kex->kex[KEX_GSS_GRP14_SHA1] = kexgss_server;
 			kex->kex[KEX_GSS_GEX_SHA1] = kexgss_server;
+			kex->kex[KEX_GSS_GRP14_SHA256] = kexgss_server;
+			kex->kex[KEX_GSS_GRP16_SHA512] = kexgss_server;
+			kex->kex[KEX_GSS_GRP18_SHA512] = kexgss_server;
+			kex->kex[KEX_GSS_C25519_SHA256] = kexgss_server;
 			r = kex_add_hook(ssh, kexgss_server_hook, NULL);
 			if (r != 0)
 				fatal("kex_add_hook: %s", ssh_err(r));
@@ -1970,7 +1974,11 @@ mm_answer_gss_sign(struct ssh *ssh, int socket, struct sshbuf *m)
 
 	if ((r = ssh_gssapi_get_buffer_desc(m, &data)) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
-	if (data.length != 20)
+	/*
+	 * Supported KEX types use SHA1 (20 bytes), SHA256 (32 bytes), and
+	 * SHA512 (64 bytes).
+	 */
+	if (data.length != 20 && data.length != 32 && data.length != 64)
 		fatal("%s: data length incorrect: %zu", __func__, data.length);
 
 	/* Save the session ID on the first time around */

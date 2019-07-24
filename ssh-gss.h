@@ -87,6 +87,10 @@ struct kexgss {
 #define KEX_GSS_GRP1_SHA1_ID				KEXGSS "group1-sha1-"
 #define KEX_GSS_GRP14_SHA1_ID				KEXGSS "group14-sha1-"
 #define KEX_GSS_GEX_SHA1_ID				KEXGSS "gex-sha1-"
+#define KEX_GSS_GRP14_SHA256_ID				KEXGSS "group14-sha256-"
+#define KEX_GSS_GRP16_SHA512_ID				KEXGSS "group16-sha512-"
+#define KEX_GSS_GRP18_SHA512_ID				KEXGSS "group18-sha512-"
+#define KEX_GSS_C25519_SHA256_ID			KEXGSS "curve25519-sha256-"
 
 typedef struct {
 	char *filename;

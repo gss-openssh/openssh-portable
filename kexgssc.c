@@ -138,7 +138,14 @@ kexgss_client(struct ssh *ssh)
 	switch (kex->kex_type) {
 	case KEX_GSS_GRP1_SHA1:
 	case KEX_GSS_GRP14_SHA1:
+	case KEX_GSS_GRP14_SHA256:
+	case KEX_GSS_GRP16_SHA512:
+	case KEX_GSS_GRP18_SHA512:
 		r = kex_dh_keypair(kex);
+		break;
+
+	case KEX_GSS_C25519_SHA256:
+		r = kex_c25519_keypair(kex);
 		break;
 
 	case KEX_GSS_GEX_SHA1:
