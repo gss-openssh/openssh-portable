@@ -130,8 +130,11 @@ temporarily_use_uid(struct passwd *pw)
 	if (setegid(pw->pw_gid) < 0)
 		fatal("setegid %u: %.100s", (u_int)pw->pw_gid,
 		    strerror(errno));
-	if (seteuid(pw->pw_uid) == -1)
-		fatal("seteuid %u: %.100s", (u_int)pw->pw_uid,
+	if (setreuid(pw->pw_uid, -1) == -1)
+		fatal("setreuid(%u, -1): %.100s", (u_int)pw->pw_uid,
+		    strerror(errno));
+	if (setreuid(-1, pw->pw_uid) == -1)
+		fatal("setreuid(-1, %u): %.100s", (u_int)pw->pw_uid,
 		    strerror(errno));
 }
 
@@ -151,9 +154,11 @@ restore_uid(void)
 
 #ifdef SAVED_IDS_WORK_WITH_SETEUID
 	debug("restore_uid: %u/%u", (u_int)saved_euid, (u_int)saved_egid);
-	/* Set the effective uid back to the saved privileged uid. */
-	if (seteuid(saved_euid) < 0)
-		fatal("seteuid %u: %.100s", (u_int)saved_euid, strerror(errno));
+	/* Set the real and effective uid back to the saved privileged uid. */
+	if (setreuid(-1, saved_euid) < 0)
+		fatal("setreuid(-1, %u): %.100s", (u_int)saved_euid, strerror(errno));
+	if (setreuid(saved_euid, -1) < 0)
+		fatal("setreuid(%u, -1): %.100s", (u_int)saved_euid, strerror(errno));
 	if (setegid(saved_egid) < 0)
 		fatal("setegid %u: %.100s", (u_int)saved_egid, strerror(errno));
 #else /* SAVED_IDS_WORK_WITH_SETEUID */
