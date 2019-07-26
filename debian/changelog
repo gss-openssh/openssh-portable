@@ -1,3 +1,10 @@
+openssh (1001:8.0p1+ts3) unstable; urgency=medium
+
+  * Also set real uid when switching uids temporarily
+  * Code simplification, no longer need kex_ready/kex_start split
+
+ -- Viktor Dukhovni <viktor@twosigma.com>  Fri, 26 Jul 2019 01:42:00 +0000
+
 openssh (1001:8.0p1+ts2) unstable; urgency=medium
 
   * Further GSSAPI patch cleanup
