@@ -180,7 +180,7 @@ typedef enum {
 	oFingerprintHash, oUpdateHostkeys, oHostbasedKeyTypes,
 	oPubkeyAcceptedKeyTypes, oCASignatureAlgorithms, oProxyJump,
 	oProtocolKeepAlives, oSetupTimeOut,
-	oIgnore, oIgnoredUnknownOption, oDeprecated, oUnsupported
+	oIgnore, oLogIgnored, oIgnoredUnknownOption, oDeprecated, oUnsupported
 } OpCodes;
 
 /* Textual representations of the tokens. */
@@ -261,7 +261,10 @@ static struct {
 	{ "hostkeyalias", oHostKeyAlias },
 	{ "proxycommand", oProxyCommand },
 	{ "port", oPort },
-	{ "ciphers", oCiphers },
+	{ "ciphers", oLogIgnored },
+	{ "noneenabled", oLogIgnored },
+	{ "noneswitch", oLogIgnored },
+	{ "ciphersoverride", oCiphers },
 	{ "macs", oMacs },
 	{ "remoteforward", oRemoteForward },
 	{ "localforward", oLocalForward },
@@ -1799,6 +1802,11 @@ parse_keytypes:
 		if (*activep && *charptr == NULL)
 			*charptr = xstrdup(arg);
 		break;
+
+	case oLogIgnored:
+		logit("ignoring option \"%s\" from user \"%s\"", keyword,
+		    pw->pw_name);
+		return 0;
 
 	case oDeprecated:
 		debug("%s line %d: Deprecated option \"%s\"",

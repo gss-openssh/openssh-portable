@@ -681,6 +681,7 @@ static struct {
 	{ "allowgroups", sAllowGroups, SSHCFG_ALL },
 	{ "denygroups", sDenyGroups, SSHCFG_ALL },
 	{ "ciphers", sCiphers, SSHCFG_GLOBAL },
+	{ "noneenabled", sUnsupported, SSHCFG_ALL },
 	{ "macs", sMacs, SSHCFG_GLOBAL },
 	{ "protocol", sIgnore, SSHCFG_GLOBAL },
 	{ "gatewayports", sGatewayPorts, SSHCFG_ALL },

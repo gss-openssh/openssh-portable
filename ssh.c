@@ -910,14 +910,8 @@ main(int ac, char **av)
 			}
 			break;
 		case 'c':
-			if (!ciphers_valid(*optarg == '+' ?
-			    optarg + 1 : optarg)) {
-				fprintf(stderr, "Unknown cipher type '%s'\n",
-				    optarg);
-				exit(255);
-			}
-			free(options.ciphers);
-			options.ciphers = xstrdup(optarg);
+			logit("Ignoring '-c %s' option from user: %s", optarg,
+			    pw->pw_name);
 			break;
 		case 'm':
 			if (mac_valid(optarg)) {
