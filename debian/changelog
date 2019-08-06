@@ -1,3 +1,10 @@
+openssh (1001:8.0p1+ts4) unstable; urgency=medium
+
+  * Update docs re preference of AESGCM over CHACHA20-POLY1305
+  * Ignore ssh(1) -c switch and ciphers option along wiht HPN none
+
+ -- Viktor Dukhovni <viktor@twosigma.com>  Tue, 06 Aug 2019 23:46:38 +0000
+
 openssh (1001:8.0p1+ts3) unstable; urgency=medium
 
   * Also set real uid when switching uids temporarily
