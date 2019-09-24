@@ -431,6 +431,13 @@ ssh_gssapi_do_child(char ***envp, u_int *envsizep)
 		child_set_env(envp, envsizep, gssapi_client.store.envvar,
 		    gssapi_client.store.envval);
 	}
+	if (gssapi_client.exportedname.length != 0 &&
+	    gssapi_client.exportedname.value != NULL) {
+		debug("Setting %s to %s", "SSH_GSSAPI_NAME",
+		    gssapi_client.exportedname.value);
+		child_set_env(envp, envsizep, "SSH_GSSAPI_NAME",
+		    gssapi_client.exportedname.value);
+	}
 }
 
 /* Privileged */
