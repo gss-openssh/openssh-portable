@@ -27,15 +27,15 @@
 #ifdef GSSAPI
 
 /*
- * This file provides default methods for struct ssh_gssapi_mech_struct.
+ * This file provides default implementations of methods for struct
+ * ssh_gssapi_mech_struct.
  *
- * For Kerberos we used to use libkrb5-specific methods of doing things like
- * extracting raw credentials from delegated credentials and writing them to
- * ccaches, and also for userok- and/or aname2lname-type things.
+ * Some mechanisms might need to provide mechanism-specific implementations of
+ * those methods, but for Kerberos we can rely entirely on standard, generic
+ * GSS-API functions (including standardized GSS-API v2 update 1 extensions).
  *
- * Now that modern GSS-API extension availability is widespread, we no longer
- * need that.  It's possible some future mechanism might need to override these
- * methods, which is why we keep struct ssh_gssapi_mech_struct.
+ * The most likely method to require mechanism-specific implementations is the
+ * name formatting method.
  */
 
 #include <sys/types.h>
