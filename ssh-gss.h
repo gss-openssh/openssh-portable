@@ -103,6 +103,7 @@ typedef struct {
 	gss_OID mechoid;
 	gss_OID initial_mechoid;
 	gss_name_t cgname;
+	gss_name_t initiator_name;
 	struct ssh_gssapi_mech_struct *mech;
 	ssh_gssapi_ccache store;
 	int used;
