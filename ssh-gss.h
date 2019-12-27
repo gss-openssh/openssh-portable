@@ -58,7 +58,7 @@ struct kexgss {
 
 struct kexgss {
 	gss_OID mech;	/* Saved on first use */
-	gss_name_t name;	/* Saved on first use */
+	gss_name_t kgname;	/* Saved on first use */
 	char	*client;
 	char	*host;
 	char	*deleg_creds;
@@ -102,7 +102,7 @@ typedef struct {
 	gss_cred_id_t creds;
 	gss_OID mechoid;
 	gss_OID initial_mechoid;
-	gss_name_t name;
+	gss_name_t cgname;
 	struct ssh_gssapi_mech_struct *mech;
 	ssh_gssapi_ccache store;
 	int used;
@@ -125,7 +125,7 @@ typedef struct {
 	OM_uint32	major; /* both */
 	OM_uint32	minor; /* both */
 	gss_ctx_id_t	context; /* both */
-	gss_name_t	name; /* both */
+	gss_name_t	gname; /* both */
 	gss_OID		oid; /* client */
 	gss_cred_id_t	creds; /* server */
 	gss_name_t	client; /* server */
@@ -176,7 +176,7 @@ gss_OID ssh_gssapi_id_kex(Gssctxt *, char *, int);
 int ssh_gssapi_server_check_mech(Gssctxt **,gss_OID, const char *, 
     const char *, gss_name_t);
 OM_uint32 ssh_gssapi_server_ctx(Gssctxt **, gss_OID);
-int ssh_gssapi_userok(char *name, struct passwd *);
+int ssh_gssapi_userok(char *, struct passwd *);
 OM_uint32 ssh_gssapi_checkmic(Gssctxt *, gss_buffer_t, gss_buffer_t);
 void ssh_gssapi_do_child(char ***, u_int *);
 void ssh_gssapi_cleanup_creds(void);

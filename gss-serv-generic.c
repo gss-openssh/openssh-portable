@@ -65,7 +65,7 @@ ssh_gssapi_generic_userok(ssh_gssapi_client *client, const char *username)
 {
 	int ret;
 
-	ret = gss_userok(client->name, username);
+	ret = gss_userok(client->cgname, username);
 	do_log2(SYSLOG_LEVEL_INFO, "Login to user %s %s by gss_userok()",
 		username, ret ? "granted" : "rejected");
 	return ret;
@@ -83,7 +83,7 @@ ssh_gssapi_generic_isuser(ssh_gssapi_client *client, const char *username)
 	OM_uint32 minor;
 	int ret;
 
-	if (gss_localname(&minor, client->name, client->initial_mechoid,
+	if (gss_localname(&minor, client->cgname, client->initial_mechoid,
 			  &localname) != GSS_S_COMPLETE)
 	    return 0;
 
@@ -142,7 +142,7 @@ ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *store,
 	if (major == GSS_S_COMPLETE) {
 		int eq = 0;
 
-		(void) gss_compare_name(&minor, def_cred_name, client->name,
+		(void) gss_compare_name(&minor, def_cred_name, client->cgname,
 					&eq);
 		gss_release_name(&minor, &def_cred_name);
 		if (!eq) {

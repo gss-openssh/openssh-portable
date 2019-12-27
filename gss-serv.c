@@ -126,14 +126,14 @@ ssh_gssapi_acquire_cred(Gssctxt *ctx)
 		}
 
 		if ((ctx->major = gss_acquire_cred(&ctx->minor,
-		    ctx->name, 0, oidset, GSS_C_ACCEPT, &ctx->creds,
+		    ctx->gname, 0, oidset, GSS_C_ACCEPT, &ctx->creds,
 		    NULL, NULL)))
 			ssh_gssapi_error(ctx);
 
 		gss_release_oid_set(&status, &oidset);
 		return (ctx->major);
 	} else {
-		ctx->name = GSS_C_NO_NAME;
+		ctx->gname = GSS_C_NO_NAME;
 		ctx->creds = GSS_C_NO_CREDENTIAL;
 	}
 	return GSS_S_COMPLETE;
@@ -271,7 +271,7 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 			return (ctx->major);
 		}
 
-		ctx->major = gss_compare_name(&ctx->minor, client->name,
+		ctx->major = gss_compare_name(&ctx->minor, client->cgname,
 		    new_name, &equal);
 
 		if (GSS_ERROR(ctx->major)) {
@@ -286,9 +286,9 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 
 		debug("Marking rekeyed credentials for export");
 
-		gss_release_name(&ctx->minor, &client->name);
+		gss_release_name(&ctx->minor, &client->cgname);
 		gss_release_cred(&ctx->minor, &client->creds);
-		client->name = new_name;
+		client->cgname = new_name;
 		client->creds = ctx->client_creds;
 		ctx->client_creds = GSS_C_NO_CREDENTIAL;
 		client->updated = 1;
@@ -310,7 +310,7 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 
 	if (ctx->client_creds &&
 	    (ctx->major = gss_inquire_cred_by_mech(&ctx->minor,
-	     ctx->client_creds, ctx->oid, &client->name, NULL, NULL, NULL))) {
+	     ctx->client_creds, ctx->oid, &client->cgname, NULL, NULL, NULL))) {
 		ssh_gssapi_error(ctx);
 		return (ctx->major);
 	}

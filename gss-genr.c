@@ -365,7 +365,7 @@ ssh_gssapi_build_ctx(Gssctxt **ctx)
 {
 	*ctx = xcalloc(1, sizeof (Gssctxt));
 	(*ctx)->context = GSS_C_NO_CONTEXT;
-	(*ctx)->name = GSS_C_NO_NAME;
+	(*ctx)->gname = GSS_C_NO_NAME;
 	(*ctx)->oid = GSS_C_NO_OID;
 	(*ctx)->creds = GSS_C_NO_CREDENTIAL;
 	(*ctx)->client = GSS_C_NO_NAME;
@@ -382,8 +382,8 @@ ssh_gssapi_delete_ctx(Gssctxt **ctx)
 		return;
 	if ((*ctx)->context != GSS_C_NO_CONTEXT)
 		gss_delete_sec_context(&ms, &(*ctx)->context, GSS_C_NO_BUFFER);
-	if ((*ctx)->name != GSS_C_NO_NAME)
-		gss_release_name(&ms, &(*ctx)->name);
+	if ((*ctx)->gname != GSS_C_NO_NAME)
+		gss_release_name(&ms, &(*ctx)->gname);
 	if ((*ctx)->creds != GSS_C_NO_CREDENTIAL)
 		gss_release_cred(&ms, &(*ctx)->creds);
 	if ((*ctx)->client != GSS_C_NO_NAME)
@@ -413,7 +413,7 @@ ssh_gssapi_init_ctx(Gssctxt *ctx, char *deleg_creds, gss_buffer_desc *recv_tok,
 	}
 
 	ctx->major = gss_init_sec_context(&ctx->minor,
-	    ctx->client_creds, &ctx->context, ctx->name, ctx->oid,
+	    ctx->client_creds, &ctx->context, ctx->gname, ctx->oid,
 	    GSS_C_MUTUAL_FLAG | GSS_C_INTEG_FLAG | deleg_flag,
 	    0, NULL, recv_tok, NULL, send_tok, flags, NULL);
 
@@ -435,7 +435,7 @@ ssh_gssapi_import_name(Gssctxt *ctx, const char *host)
 	gssbuf.length = strlen(gssbuf.value);
 
 	if ((ctx->major = gss_import_name(&ctx->minor,
-	    &gssbuf, GSS_C_NT_HOSTBASED_SERVICE, &ctx->name)))
+	    &gssbuf, GSS_C_NT_HOSTBASED_SERVICE, &ctx->gname)))
 		ssh_gssapi_error(ctx);
 
 	free(gssbuf.value);
@@ -587,8 +587,8 @@ ssh_gssapi_credentials_updated(Gssctxt *ctxt, struct kexgss *kexgss)
 		 * the either service ticket or the original TGT, but there's
 		 * no way to know.  This works in practice.
 		 */
-		if (kexgss->name == GSS_C_NO_NAME)
-			nameout = &kexgss->name;
+		if (kexgss->kgname == GSS_C_NO_NAME)
+			nameout = &kexgss->kgname;
 		if (kexgss->mech == GSS_C_NO_OID)
 			mechout = &kexgss->mech;
 		major = gss_inquire_context(&minor, ctxt->context,
@@ -611,7 +611,7 @@ ssh_gssapi_credentials_updated(Gssctxt *ctxt, struct kexgss *kexgss)
 		 */
 		mechs.count = 1;
 		mechs.elements = kexgss->mech;
-		major = gss_acquire_cred(&minor, kexgss->name,
+		major = gss_acquire_cred(&minor, kexgss->kgname,
 		    GSS_C_INDEFINITE, &mechs, GSS_C_INITIATE, &cred,
 		    NULL, NULL);
 		if (GSS_ERROR(major))
@@ -638,10 +638,10 @@ ssh_gssapi_credentials_updated(Gssctxt *ctxt, struct kexgss *kexgss)
 	 * defaults until we do.
 	 */
 	if (kexgss->mech != GSS_C_NO_OID &&
-	    kexgss->name != GSS_C_NO_NAME) {
+	    kexgss->kgname != GSS_C_NO_NAME) {
 	    mechs.count = 1;
 	    mechs.elements = kexgss->mech;
-	    major = gss_acquire_cred(&minor, kexgss->name, GSS_C_INDEFINITE,
+	    major = gss_acquire_cred(&minor, kexgss->kgname, GSS_C_INDEFINITE,
 		&mechs, GSS_C_INITIATE, &cred, NULL, NULL);
 	    if (GSS_ERROR(major))
 		    return 0;
@@ -686,7 +686,7 @@ void
 ssh_free_kexgss(struct kexgss *kexgss)
 {
 	OM_uint32 dummy;
-	gss_release_name(&dummy, &kexgss->name);
+	gss_release_name(&dummy, &kexgss->kgname);
 }
 
 #endif /* GSSAPI */

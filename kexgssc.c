@@ -69,7 +69,7 @@ client_mechs(struct kexgss *kexgss)
 	}
 
 	return ssh_gssapi_kex_mechs(mechs, ssh_gssapi_check_mechanism,
-	    kexgss->host, kexgss->client, kexgss->name);
+	    kexgss->host, kexgss->client, kexgss->kgname);
 }
 
 /* ARGSUSED */
@@ -126,7 +126,7 @@ kexgss_client(struct ssh *ssh)
 	}
 
 	if (kex->gss.client &&
-	    ssh_gssapi_client_identity(ctxt, kex->gss.client, kex->gss.name)) {
+	    ssh_gssapi_client_identity(ctxt, kex->gss.client, kex->gss.kgname)) {
 		r = SSH_ERR_GSSAPI_ERROR;
 		goto out;
 	}

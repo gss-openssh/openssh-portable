@@ -203,7 +203,7 @@ ssh_kex2(struct ssh *ssh, char *host, struct sockaddr *hostaddr, u_short port)
 			fatal("kex_add_hook: %s", ssh_err(r));
 
 		ssh->kex->gss.mech = GSS_C_NO_OID;
-		ssh->kex->gss.name = GSS_C_NO_NAME;
+		ssh->kex->gss.kgname = GSS_C_NO_NAME;
 		ssh->kex->gss.client = options.gss_client_identity;
 		if (options.gss_server_identity)
 			ssh->kex->gss.host = options.gss_server_identity;
