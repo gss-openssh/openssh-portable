@@ -51,7 +51,8 @@ ssh_gssapi_mech gssapi_kerberos_mech = {
 	ssh_gssapi_generic_userok,
 	ssh_gssapi_generic_isuser,
 	ssh_gssapi_generic_storecreds,
-	ssh_gssapi_generic_updatecreds
+	ssh_gssapi_generic_updatecreds,
+	ssh_gssapi_generic_formatname,
 };
 
 #endif /* GSSAPI */

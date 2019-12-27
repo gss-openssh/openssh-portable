@@ -157,4 +157,21 @@ ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *store,
 	return 1;
 }
 
+const char *
+ssh_gssapi_generic_formatname(ssh_gssapi_client *client)
+{
+	char *s = NULL;
+
+	if (client->formattedname)
+		return client->formattedname;
+	if (client->displayname.value == NULL)
+		return NULL;
+	if (asprintf(&s, "%s:%.*s", client->mech->name,
+		     (int)client->displayname.length,
+                     (char *)client->displayname.value) == -1)
+		s = NULL;
+	client->formattedname = s;
+	return s;
+}
+
 #endif /* GSSAPI */

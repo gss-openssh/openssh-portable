@@ -98,7 +98,7 @@ typedef struct {
 
 typedef struct {
 	gss_buffer_desc displayname;
-	gss_buffer_desc exportedname;
+        char *formattedname; /* For SSH_GSSAPI_NAME env var, authorized_keys */
 	gss_cred_id_t creds;
 	gss_OID mechoid;
 	gss_OID initial_mechoid;
@@ -118,6 +118,7 @@ typedef struct ssh_gssapi_mech_struct {
 	int (*isuser) (ssh_gssapi_client *, const char *);
 	void (*storecreds) (ssh_gssapi_client *);
 	int (*updatecreds) (ssh_gssapi_ccache *, ssh_gssapi_client *);
+	const char *(*formatname) (ssh_gssapi_client *);
 } ssh_gssapi_mech;
 
 typedef struct {
@@ -154,6 +155,7 @@ OM_uint32 ssh_gssapi_accept_ctx(Gssctxt *,
 OM_uint32 ssh_gssapi_getclient(Gssctxt *, ssh_gssapi_client *);
 void ssh_gssapi_error(Gssctxt *);
 void ssh_log_gssapi_errors(int);
+char *ssh_gssapi_display_error(OM_uint32, OM_uint32, gss_OID);
 char *ssh_gssapi_last_error(Gssctxt *, OM_uint32 *, OM_uint32 *);
 void ssh_gssapi_build_ctx(Gssctxt **);
 void ssh_gssapi_delete_ctx(Gssctxt **);
@@ -192,7 +194,7 @@ int ssh_gssapi_generic_userok(ssh_gssapi_client *, const char *);
 int ssh_gssapi_generic_isuser(ssh_gssapi_client *, const char *);
 void ssh_gssapi_generic_storecreds(ssh_gssapi_client *);
 int ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *, ssh_gssapi_client *);
-char *ssh_gssapi_generic_clientname(ssh_gssapi_client *);
+const char *ssh_gssapi_generic_formatname(ssh_gssapi_client *);
 
 #endif /* GSSAPI */
 

@@ -63,21 +63,17 @@ extern ServerOptions options;
  */
 
 static ssh_gssapi_client gssapi_client =
-    { GSS_C_EMPTY_BUFFER, GSS_C_EMPTY_BUFFER,
+    { GSS_C_EMPTY_BUFFER, NULL,
       GSS_C_NO_CREDENTIAL, GSS_C_NO_OID, GSS_C_NO_OID, GSS_C_NO_NAME, NULL,
       {NULL}, 0, 0};
 
 ssh_gssapi_mech gssapi_null_mech =
     { NULL, NULL, {0, NULL}, NULL, NULL, NULL, NULL, NULL };
 
-#ifdef KRB5
 extern ssh_gssapi_mech gssapi_kerberos_mech;
-#endif
 
 ssh_gssapi_mech* supported_mechs[]= {
-#if defined(KRB5)
 	&gssapi_kerberos_mech,
-#endif
 	&gssapi_null_mech,
 };
 
@@ -354,13 +350,15 @@ ssh_gssapi_storecreds(void)
 void
 ssh_gssapi_do_child(char ***envp, u_int *envsizep)
 {
-	if (gssapi_client.exportedname.length != 0 &&
-	    gssapi_client.exportedname.value != NULL) {
-		debug("Setting %s to %s", "SSH_GSSAPI_NAME",
-		    gssapi_client.exportedname.value);
-		child_set_env(envp, envsizep, "SSH_GSSAPI_NAME",
-		    gssapi_client.exportedname.value);
+	const char *s = gssapi_client.formattedname;
+
+	if (s == NULL && gssapi_client.mech->formatname != NULL) {
+		(void) gssapi_client.mech->formatname(&gssapi_client);
+		if ((s = gssapi_client.formattedname) == NULL)
+			return;
 	}
+	debug("Setting %s to %s", "SSH_GSSAPI_NAME", s);
+	child_set_env(envp, envsizep, "SSH_GSSAPI_NAME", s);
 }
 
 /* Privileged */
@@ -394,6 +392,7 @@ ssh_gssapi_userok(char *user, struct passwd *pw)
 		debug("GSS-API mechanism does not support gss_userok()");
 	gss_release_buffer(&lmin, &gssapi_client.displayname);
 	gss_release_cred(&lmin, &gssapi_client.creds);
+        free(gssapi_client.formattedname);
 	explicit_bzero(&gssapi_client, sizeof(ssh_gssapi_client));
 	return 0;
 }
