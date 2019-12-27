@@ -120,8 +120,12 @@ ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 		    (int)client->displayname.length, (char *)client->displayname.value,
 		    (u_long)major, (u_long)minor);
 	} else {
-		/* XXX Do gss_display_status() this */
-		do_log2(SYSLOG_LEVEL_INFO, "Failed to store delegated credentials");
+		char *s;
+
+		s = ssh_gssapi_display_error(major, minor, client->mechoid);
+		do_log2(SYSLOG_LEVEL_INFO, "Failed to store delegated "
+			"credentials: %s", s);
+		free(s);
 	}
 }
 

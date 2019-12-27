@@ -295,12 +295,11 @@ ssh_gssapi_error(Gssctxt *ctxt)
 }
 
 char *
-ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
-    OM_uint32 *minor_status)
+ssh_gssapi_display_error(OM_uint32 major, OM_uint32 minor, gss_OID mech)
 {
-	OM_uint32 lmin;
+	OM_uint32 lmaj, lmin;
 	gss_buffer_desc msg = GSS_C_EMPTY_BUFFER;
-	OM_uint32 ctx;
+	OM_uint32 more;
 	struct sshbuf *b;
 	char *ret;
 	int r;
@@ -308,41 +307,51 @@ ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
 	if ((b = sshbuf_new()) == NULL)
 		fatal("%s: sshbuf_new failed", __func__);
 
-	if (major_status != NULL)
-		*major_status = ctxt->major;
-	if (minor_status != NULL)
-		*minor_status = ctxt->minor;
-
-	ctx = 0;
-	/* The GSSAPI error */
+	more = 0;
+	/* Display major status codes */
 	do {
-		gss_display_status(&lmin, ctxt->major,
-		    GSS_C_GSS_CODE, ctxt->oid, &ctx, &msg);
-
+		lmaj = gss_display_status(&lmin, major, GSS_C_GSS_CODE, mech,
+					  &more, &msg);
+		if (GSS_ERROR(lmaj))
+			fatal("%s: gss display major status error", __func__);
+		if (msg.value == NULL)
+			continue;
 		if ((sshbuf_len(b) > 0 && (r = sshbuf_put(b, ": ", 2) != 0)) ||
 		    (r = sshbuf_put(b, msg.value, msg.length)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
-
 		gss_release_buffer(&lmin, &msg);
-	} while (ctx != 0);
+	} while (more != 0);
 
-	/* The mechanism specific error */
+	/* Display minor (mechanism-specific) status codes */
 	do {
-		gss_display_status(&lmin, ctxt->minor,
-		    GSS_C_MECH_CODE, ctxt->oid, &ctx, &msg);
-
+		lmaj = gss_display_status(&lmin, minor, GSS_C_MECH_CODE, mech,
+					  &more, &msg);
+		if (GSS_ERROR(lmaj))
+			fatal("%s: gss display minor status error", __func__);
+		if (msg.value == NULL)
+			continue;
 		if ((sshbuf_len(b) > 0 && (r = sshbuf_put(b, ": ", 2) != 0)) ||
 		    (r = sshbuf_put(b, msg.value, msg.length)) != 0)
 			fatal("%s: buffer error: %s", __func__, ssh_err(r));
-
 		gss_release_buffer(&lmin, &msg);
-	} while (ctx != 0);
+	} while (more != 0);
 
 	if ((r = sshbuf_put_u8(b, '\n')) != 0)
 		fatal("%s: buffer error: %s", __func__, ssh_err(r));
 	ret = xstrdup((const char *)sshbuf_ptr(b));
 	sshbuf_free(b);
 	return (ret);
+}
+
+char *
+ssh_gssapi_last_error(Gssctxt *ctxt, OM_uint32 *major_status,
+    OM_uint32 *minor_status)
+{
+	if (major_status != NULL)
+		*major_status = ctxt->major;
+	if (minor_status != NULL)
+		*minor_status = ctxt->minor;
+	return ssh_gssapi_display_error(ctxt->major, ctxt->minor, ctxt->oid);
 }
 
 /*
