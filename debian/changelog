@@ -1,3 +1,18 @@
+openssh (1001:8.0p1+ts6) unstable; urgency=medium
+
+  * Use gss_store_cred_into2() so as to extract environment variable
+    settings from GSS for stored delegated credentials.  Combined with
+    recent updates to Heimdal this means users will have a single ccache
+    for each principal for which they delegate credentials, and this
+    will appear to be named DIR::/tmp/krb5_cc_${UID}_dir/tkt.${princ}.
+  * This means the end of tmux/vscode issues.
+  * Users with multiple principals can trivially change KRB5CCNAME to
+    select a different principal's credentials.
+  * If any software should fail to handle DIR: ccaches, we can always
+    switch to FILE:/tmp/krb5_cc_${UID}_dir/tkt.${princ}.
+
+ -- Nico Williams <nico@twosigma.com>  Sun, 16 Feb 2020 23:37:30 +0000
+
 openssh (1001:8.0p1+ts5) unstable; urgency=medium
 
   * Use the default GSS (Kerberos) credential store (ccache) for
