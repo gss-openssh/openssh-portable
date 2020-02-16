@@ -84,12 +84,18 @@ ssh_gssapi_generic_isuser(ssh_gssapi_client *client, const char *username)
 	int ret;
 
 	if (gss_localname(&minor, client->initiator_name, client->initial_mechoid,
-			  &localname) != GSS_S_COMPLETE)
+			  &localname) != GSS_S_COMPLETE) {
+            debug("Could not determine client principal's local name; "
+                  "not storing delegated credentials");
 	    return 0;
+        }
 
 	ret = strlen(username) == localname.length &&
 	    strncmp(username, localname.value, localname.length) == 0;
 	gss_release_buffer(&minor, &localname);
+        debug("Client principal's localname %c= requested username; "
+              "%sstoring delegated credentials",
+              ret ? '=' : '!', ret ? "" : "not ");
 	return ret;
 }
 
@@ -109,24 +115,40 @@ ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 
 	/*
 	 * XXX Add support for configuration of GSS cred store in sshd_config,
-	 * then use gss_store_cred_into(), then record the store info in
+	 * then use gss_store_cred_into2(), then record the store info in
 	 * client->store.
 	 */
-	major = gss_store_cred(&minor, client->creds, GSS_C_INITIATE,
-			       client->mechoid, 1, 1, NULL, NULL);
-	if (major == GSS_S_COMPLETE) {
-		debug("Stored delegated credentials into default store");
-		debug2("%s: gss_store_cred(%.*s) = (%lx, %lx)", __func__,
-		    (int)client->displayname.length, (char *)client->displayname.value,
-		    (u_long)major, (u_long)minor);
-	} else {
+        client->store.env = GSS_C_NO_BUFFER_SET;
+        major = gss_store_cred_into2(&minor, client->creds, GSS_C_INITIATE,
+				     client->mechoid,
+				     GSS_C_STORE_CRED_SET_PROCESS,
+				     GSS_C_NO_CRED_STORE, NULL, NULL,
+				     &client->store.env);
+	if (major != GSS_S_COMPLETE) {
 		char *s;
 
 		s = ssh_gssapi_display_error(major, minor, client->mechoid);
 		do_log2(SYSLOG_LEVEL_INFO, "Failed to store delegated "
 			"credentials: %s", s);
 		free(s);
+		return;
 	}
+
+	debug("Stored delegated credentials into default store");
+	debug2("%s: gss_store_cred(%.*s) = (%lx, %lx)", __func__,
+	       (int)client->displayname.length, (char *)client->displayname.value,
+	       (u_long)major, (u_long)minor);
+#ifdef USE_PAM
+	if (options.use_pam) {
+		size_t i;
+
+		for (i = 0; i < client->store.env->count; i++) {
+                        debug("Setting env var for delegated creds stored: %s",
+                              (char *)client->store.env->elements[i].value);
+			do_pam_putenv(client->store.env->elements[i].value);
+		}
+	}
+#endif
 }
 
 int

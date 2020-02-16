@@ -192,7 +192,7 @@ auth_krb5_password(Authctxt *authctxt, const char *password)
 
 #ifdef USE_PAM
 	if (options.use_pam)
-		do_pam_putenv("KRB5CCNAME", authctxt->krb5_ccname);
+		do_pam_setenv("KRB5CCNAME", authctxt->krb5_ccname);
 #endif
 
  out:

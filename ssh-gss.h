@@ -93,6 +93,7 @@ struct kexgss {
 #define KEX_GSS_C25519_SHA256_ID			KEXGSS "curve25519-sha256-"
 
 typedef struct {
+        gss_buffer_set_t env;
 	struct passwd *owner;
 } ssh_gssapi_ccache;
 

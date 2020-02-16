@@ -762,7 +762,7 @@ expose_authinfo(const char *caller)
 		fatal("%s: sshbuf_dup_string failed", __func__);
 
 	debug2("%s: auth information in SSH_AUTH_INFO_0", caller);
-	do_pam_putenv("SSH_AUTH_INFO_0", auth_info);
+	do_pam_setenv("SSH_AUTH_INFO_0", auth_info);
 	free(auth_info);
 }
 
@@ -1202,7 +1202,22 @@ is_pam_session_open(void)
  * during the ssh authentication process.
  */
 int
-do_pam_putenv(char *name, char *value)
+do_pam_putenv(const char *vareqval)
+{
+#ifdef HAVE_PAM_PUTENV
+	return pam_putenv(sshpam_handle, vareqval);
+#else
+	return 1;
+#endif
+}
+
+/*
+ * Set a PAM environment string. We need to do this so that the session
+ * modules can handle things like Kerberos/GSI credentials that appear
+ * during the ssh authentication process.
+ */
+int
+do_pam_setenv(const char *name, const char *value)
 {
 	int ret = 1;
 #ifdef HAVE_PAM_PUTENV
