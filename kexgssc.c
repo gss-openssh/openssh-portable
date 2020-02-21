@@ -93,6 +93,7 @@ kexgss_client(struct ssh *ssh)
 	struct sshbuf *shared_secret = NULL;
 	struct sshbuf *server_dh = NULL;
 	struct sshbuf *serverhostkey = NULL;
+	u_char *serverhostkeyp = NULL;
 	static struct sshbuf *nullkey = NULL;
 	gss_buffer_desc recv_tok = GSS_C_EMPTY_BUFFER;
 	gss_buffer_desc send_tok = GSS_C_EMPTY_BUFFER;
@@ -106,6 +107,7 @@ kexgss_client(struct ssh *ssh)
 	int first = 1;
 	int r;
 	u_char hash[SSH_DIGEST_MAX_LENGTH];
+        size_t serverhostkeylen = 0;
 	size_t hashlen;
 	kex_dec_hash_fn_t *hash_fn = kex_gen_dec_hash_client;
 
@@ -240,8 +242,17 @@ kexgss_client(struct ssh *ssh)
 			type = ssh_packet_read(ssh);
 			if (type == SSH2_MSG_KEXGSS_HOSTKEY) {
 				debug("Received KEXGSS_HOSTKEY");
-				if ((r = sshpkt_getb_froms(ssh, &serverhostkey)) != 0)
+				if ((r = sshpkt_get_string(ssh,
+							   &serverhostkeyp,
+							   &serverhostkeylen))
+				    != 0)
 					goto out;
+				if ((serverhostkey =
+				     sshbuf_from(serverhostkeyp,
+						 serverhostkeylen)) == NULL) {
+					r = SSH_ERR_ALLOC_FAIL;
+					goto out;
+				}
 				type = ssh_packet_read(ssh);
 			}
 
@@ -356,6 +367,7 @@ kexgss_client(struct ssh *ssh)
  out:
 	sshbuf_free(serverhostkey);
 	sshbuf_free(server_dh);
+	free(serverhostkeyp);
 	free(mic_tok.value);
 	free(recv_tok.value);
 	gss_release_buffer(&min_status, &send_tok);
