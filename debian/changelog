@@ -1,3 +1,9 @@
+openssh (1001:8.0p1+ts7) unstable; urgency=medium
+
+  * Update to the latest Heimdal.
+
+ -- Nico Williams <nico@twosigma.com>  Fri, 06 Mar 2020 21:30:04 +0000
+
 openssh (1001:8.0p1+ts6) unstable; urgency=medium
 
   * Use gss_store_cred_into2() so as to extract environment variable
