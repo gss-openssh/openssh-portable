@@ -720,6 +720,10 @@ Controls whether the user's GSSAPI credentials should be updated following a
 successful connection rekeying. This option can be used to accepted renewed 
 or updated credentials from a compatible client. The default is
 .Cm no .
+.It Cm GSSAPICredentialStoreKeyValue
+Adds a credential store descriptor
+.Dq KEY=VALUE .
+See your GSS-API implementation's documentation for details.
 .It Cm HostbasedAcceptedKeyTypes
 Specifies the key types that will be accepted for hostbased authentication
 as a list of comma-separated patterns.

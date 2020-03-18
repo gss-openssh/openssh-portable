@@ -2,10 +2,10 @@
 /* $OpenBSD: servconf.c,v 1.350 2019/03/25 22:33:44 djm Exp $ */
 /*
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
- *                    All rights reserved
+ *		      All rights reserved
  *
  * As far as I am concerned, the code I have written for this software
- * can be used freely for any purpose.  Any derived versions of this
+ * can be used freely for any purpose.	Any derived versions of this
  * software must be clearly marked as such, and if the derived work is
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
@@ -130,6 +130,8 @@ initialize_server_options(ServerOptions *options)
 	options->gss_strict_acceptor = -1;
 	options->gss_store_nonan2ln = -1;
 	options->gss_store_rekey = -1;
+	options->gss_cred_store_keyvalues = NULL;
+	options->num_gss_cred_store_keyvalues = 0;
 	options->password_authentication = -1;
 	options->kbd_interactive_authentication = -1;
 	options->challenge_response_authentication = -1;
@@ -275,6 +277,15 @@ servconf_add_hostcert(const char *file, const int line,
 	array_append(file, line, "HostCertificate",
 	    &options->host_cert_files, &options->num_host_cert_files, apath);
 	free(apath);
+}
+
+void
+servconf_add_gss_cred_store_keyvalue(const char *file, const int line,
+    ServerOptions *options, const char *kv)
+{
+	array_append2(file, line, "GssCredStoreKeyValue",
+	    &options->gss_cred_store_keyvalues, NULL,
+	    &options->num_gss_cred_store_keyvalues, kv, 1);
 }
 
 void
@@ -507,6 +518,8 @@ fill_default_server_options(ServerOptions *options)
 		CLEAR_ON_NONE(options->host_key_files[i]);
 	for (i = 0; i < options->num_host_cert_files; i++)
 		CLEAR_ON_NONE(options->host_cert_files[i]);
+	for (i = 0; i < options->num_gss_cred_store_keyvalues; i++)
+		CLEAR_ON_NONE(options->gss_cred_store_keyvalues[i]);
 #undef CLEAR_ON_NONE
 
 	/* Similar handling for AuthenticationMethods=any */
@@ -554,7 +567,7 @@ typedef enum {
 	sHostKeyAlgorithms,
 	sClientAliveInterval, sClientAliveCountMax, sAuthorizedKeysFile,
 	sGssAuthentication, sGssCleanupCreds, sGssStrictAcceptor,
-	sGssStoreNonAn2Ln, sGssKeyEx, sGssStoreRekey,
+	sGssStoreNonAn2Ln, sGssKeyEx, sGssStoreRekey, sGssCredStoreKeyValue,
 	sAcceptEnv, sSetEnv, sPermitTunnel,
 	sMatch, sPermitOpen, sPermitListen, sForceCommand, sChrootDirectory,
 	sUsePrivilegeSeparation, sAllowAgentForwarding,
@@ -635,6 +648,7 @@ static struct {
 	{ "gssapistorenonan2ln", sGssStoreNonAn2Ln, SSHCFG_GLOBAL },
 	{ "gssapikeyexchange", sGssKeyEx, SSHCFG_GLOBAL },
 	{ "gssapistorecredentialsonrekey", sGssStoreRekey, SSHCFG_GLOBAL },
+	{ "gssapicredentialstorekeyvalue", sGssCredStoreKeyValue, SSHCFG_GLOBAL },
 #else
 	{ "gssapiauthentication", sUnsupported, SSHCFG_ALL },
 	{ "gssapicleanupcredentials", sUnsupported, SSHCFG_GLOBAL },
@@ -643,6 +657,7 @@ static struct {
 	{ "gssapistorenonan2ln", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapikeyexchange", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapistorecredentialsonrekey", sUnsupported, SSHCFG_GLOBAL },
+	{ "gssapicredentialstorekeyvalue", sUnsupported, SSHCFG_GLOBAL },
 #endif
 	{ "gssusesessionccache", sUnsupported, SSHCFG_GLOBAL },
 	{ "gssapiusesessioncredcache", sUnsupported, SSHCFG_GLOBAL },
@@ -1022,7 +1037,7 @@ get_connection_info(struct ssh *ssh, int populate, int use_dns)
  *
  * The second time is after a connection has been established but before
  * authentication.  activep is initialized to 2 and global config directives
- * are ignored since they have already been processed.  If the criteria in a
+ * are ignored since they have already been processed.	If the criteria in a
  * Match block is met, activep is set and the subsequent directives
  * processed and actioned until EOF or another Match block unsets it.  Any
  * options set are copied into the main server config.
@@ -1592,6 +1607,16 @@ process_server_config_line(ServerOptions *options, char *line,
 	case sGssStoreRekey:
 		intptr = &options->gss_store_rekey;
 		goto parse_flag;
+
+	case sGssCredStoreKeyValue:
+		arg = strdelim(&cp);
+		if (!arg || *arg == '\0')
+			fatal("%s line %d: missing GSS credential store "
+			      "key/value.", filename, linenum);
+		if (*activep)
+		    servconf_add_gss_cred_store_keyvalue(filename, linenum,
+							 options, arg);
+		break;
 
 	case sPasswordAuthentication:
 		intptr = &options->password_authentication;
@@ -2765,6 +2790,8 @@ dump_config(ServerOptions *o)
 	dump_cfg_strarray(sSetEnv, o->num_setenv, o->setenv);
 	dump_cfg_strarray_oneline(sAuthenticationMethods,
 	    o->num_auth_methods, o->auth_methods);
+	dump_cfg_strarray(sGssCredStoreKeyValue, o->num_gss_cred_store_keyvalues,
+	     o->gss_cred_store_keyvalues);
 
 	/* other arguments */
 	for (i = 0; i < o->num_subsystems; i++)

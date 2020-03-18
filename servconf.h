@@ -3,11 +3,11 @@
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
- *                    All rights reserved
+ *		      All rights reserved
  * Definitions for server configuration data and for the functions reading it.
  *
  * As far as I am concerned, the code I have written for this software
- * can be used freely for any purpose.  Any derived versions of this
+ * can be used freely for any purpose.	Any derived versions of this
  * software must be clearly marked as such, and if the derived work is
  * incompatible with the protocol description in the RFC file, it must be
  * called by a name other than "ssh" or "Secure Shell".
@@ -76,29 +76,29 @@ typedef struct {
 
 	char   **host_key_files;	/* Files containing host keys. */
 	int	*host_key_file_userprovided; /* Key was specified by user. */
-	u_int	num_host_key_files;     /* Number of files for host keys. */
+	u_int	num_host_key_files;	/* Number of files for host keys. */
 	char   **host_cert_files;	/* Files containing host certs. */
 	u_int	num_host_cert_files;	/* Number of files for host certs. */
 
 	char   *host_key_agent;		/* ssh-agent socket for host keys. */
 	char   *pid_file;		/* Where to put our pid */
-	int     login_grace_time;	/* Disconnect if no auth in this time
+	int	login_grace_time;	/* Disconnect if no auth in this time
 					 * (sec). */
-	int     permit_root_login;	/* PERMIT_*, see above */
-	int     ignore_rhosts;	/* Ignore .rhosts and .shosts. */
-	int     ignore_user_known_hosts;	/* Ignore ~/.ssh/known_hosts
+	int	permit_root_login;	/* PERMIT_*, see above */
+	int	ignore_rhosts;	/* Ignore .rhosts and .shosts. */
+	int	ignore_user_known_hosts;	/* Ignore ~/.ssh/known_hosts
 						 * for RhostsRsaAuth */
-	int     print_motd;	/* If true, print /etc/motd. */
+	int	print_motd;	/* If true, print /etc/motd. */
 	int	print_lastlog;	/* If true, print lastlog */
-	int     x11_forwarding;	/* If true, permit inet (spoofing) X11 fwd. */
-	int     x11_display_offset;	/* What DISPLAY number to start
+	int	x11_forwarding;	/* If true, permit inet (spoofing) X11 fwd. */
+	int	x11_display_offset;	/* What DISPLAY number to start
 					 * searching at */
-	int     x11_use_localhost;	/* If true, use localhost for fake X11 server. */
+	int	x11_use_localhost;	/* If true, use localhost for fake X11 server. */
 	char   *xauth_location;	/* Location of xauth program */
 	int	permit_tty;	/* If false, deny pty allocation */
 	int	permit_user_rc;	/* If false, deny ~/.ssh/rc execution */
-	int     strict_modes;	/* If true, require string home dir modes. */
-	int     tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
+	int	strict_modes;	/* If true, require string home dir modes. */
+	int	tcp_keep_alive;	/* If true, set SO_KEEPALIVE. */
 	int	ip_qos_interactive;	/* IP ToS/DSCP/class for interactive */
 	int	ip_qos_bulk;		/* IP ToS/DSCP/class for bulk traffic */
 	char   *ciphers;	/* Supported SSH2 ciphers. */
@@ -107,39 +107,42 @@ typedef struct {
 	struct ForwardOptions fwd_opts;	/* forwarding options */
 	SyslogFacility log_facility;	/* Facility for system logging. */
 	LogLevel log_level;	/* Level for system logging. */
-	int     hostbased_authentication;	/* If true, permit ssh2 hostbased auth */
-	int     hostbased_uses_name_from_packet_only; /* experimental */
+	int	hostbased_authentication;	/* If true, permit ssh2 hostbased auth */
+	int	hostbased_uses_name_from_packet_only; /* experimental */
 	char   *hostbased_key_types;	/* Key types allowed for hostbased */
 	char   *hostkeyalgorithms;	/* SSH2 server key types */
 	char   *ca_sign_algorithms;	/* Allowed CA signature algorithms */
-	int     pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
+	int	pubkey_authentication;	/* If true, permit ssh2 pubkey authentication. */
 	char   *pubkey_key_types;	/* Key types allowed for public key */
-	int     kerberos_authentication;	/* If true, permit Kerberos
+	int	kerberos_authentication;	/* If true, permit Kerberos
 						 * authentication. */
-	int     kerberos_or_local_passwd;	/* If true, permit kerberos
+	int	kerberos_or_local_passwd;	/* If true, permit kerberos
 						 * and any other password
 						 * authentication mechanism,
 						 * such as SecurID or
 						 * /etc/passwd */
-	int     kerberos_ticket_cleanup;	/* If true, destroy ticket
+	int	kerberos_ticket_cleanup;	/* If true, destroy ticket
 						 * file on logout. */
-	int     kerberos_get_afs_token;		/* If true, try to get AFS token if
+	int	kerberos_get_afs_token;		/* If true, try to get AFS token if
 						 * authenticated with Kerberos. */
-	int     gss_authentication;	/* If true, permit GSSAPI authentication */
-	int     gss_keyex;		/* If true, permit GSSAPI key exchange */
-	int     gss_cleanup_creds;	/* If true, destroy cred cache on logout */
-	int     gss_strict_acceptor;	/* If true, restrict the GSSAPI acceptor name */
-	int     gss_store_nonan2ln;	/* Store delegated creds of non-an2ln princs? */
-	int 	gss_store_rekey;
-	int     password_authentication;	/* If true, permit password
+	int	gss_authentication;	/* If true, permit GSSAPI authentication */
+	int	gss_keyex;		/* If true, permit GSSAPI key exchange */
+	int	gss_cleanup_creds;	/* If true, destroy cred cache on logout */
+	int	gss_strict_acceptor;	/* If true, restrict the GSSAPI acceptor name */
+	int	gss_store_nonan2ln;	/* Store delegated creds of non-an2ln princs? */
+	int	gss_store_rekey;
+	char   **gss_cred_store_keyvalues;	/* For gss_store_cred_into2() */
+	u_int	num_gss_cred_store_keyvalues;	/* Number of key/value pairs
+						 * for gss_store_cred_into2() */
+	int	password_authentication;	/* If true, permit password
 						 * authentication. */
-	int     kbd_interactive_authentication;	/* If true, permit */
-	int     challenge_response_authentication;
-	int     permit_empty_passwd;	/* If false, do not permit empty
+	int	kbd_interactive_authentication;	/* If true, permit */
+	int	challenge_response_authentication;
+	int	permit_empty_passwd;	/* If false, do not permit empty
 					 * passwords. */
-	int     permit_user_env;	/* If true, read ~/.ssh/environment */
+	int	permit_user_env;	/* If true, read ~/.ssh/environment */
 	char   *permit_user_env_whitelist; /* pattern-list whitelist */
-	int     compression;	/* If true, compression is allowed */
+	int	compression;	/* If true, compression is allowed */
 	int	allow_tcp_forwarding; /* One of FORWARD_* */
 	int	allow_streamlocal_forwarding; /* One of FORWARD_* */
 	int	allow_agent_forwarding;
@@ -186,16 +189,16 @@ typedef struct {
 	char   *adm_forced_command;
 
 	int	use_pam;		/* Enable auth via PAM */
-        int     tcp_rcv_buf_poll;       /* poll tcp rcv window in autotuning kernels*/
+	int	tcp_rcv_buf_poll;	/* poll tcp rcv window in autotuning kernels*/
 	int	hpn_disabled;		/* disable hpn functionality. false by default */
 	int	hpn_buffer_size;	/* set the hpn buffer size - default 3MB */
 
 	int	permit_tun;
 
 	char   **permitted_opens;	/* May also be one of PERMITOPEN_* */
-	u_int   num_permitted_opens;
+	u_int	num_permitted_opens;
 	char   **permitted_listens; /* May also be one of PERMITOPEN_* */
-	u_int   num_permitted_listens;
+	u_int	num_permitted_listens;
 
 	char   *chroot_directory;
 	char   *revoked_keys_file;
@@ -219,13 +222,13 @@ typedef struct {
 	u_int64_t timing_secret;
 
 	int	debian_banner;
-}       ServerOptions;
+}	ServerOptions;
 
 /* Information about the incoming connection as used by Match */
 struct connection_info {
 	const char *user;
 	const char *host;	/* possibly resolved hostname */
-	const char *address; 	/* remote address */
+	const char *address;	/* remote address */
 	const char *laddress;	/* local address */
 	int lport;		/* local port */
 	const char *rdomain;	/* routing domain if available */

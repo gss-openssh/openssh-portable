@@ -252,13 +252,13 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 	int i = 0;
 	int equal = 0;
 	gss_name_t new_name = GSS_C_NO_NAME;
-        OM_uint32 major, minor;
+	OM_uint32 major, minor;
 
 	client->mechoid = ctx->oid;
 	if (client->initial_mechoid == GSS_C_NO_OID)
 	    client->initial_mechoid = ctx->oid;
 
-        if (client->initiator_name == GSS_C_NO_NAME) {
+	if (client->initiator_name == GSS_C_NO_NAME) {
 		major = gss_duplicate_name(&minor, ctx->client,
 					   &client->initiator_name);
 
@@ -270,7 +270,7 @@ ssh_gssapi_getclient(Gssctxt *ctx, ssh_gssapi_client *client)
 			      s ?  s : "<unknown error>");
 			free(s);
 		}
-        }
+	}
 
 	if (options.gss_store_rekey && client->used && ctx->client_creds) {
 		if (client->mech->oid.length != ctx->oid->length ||
@@ -408,7 +408,7 @@ ssh_gssapi_userok(char *user, struct passwd *pw)
 		debug("GSS-API mechanism does not support gss_userok()");
 	gss_release_buffer(&lmin, &gssapi_client.displayname);
 	gss_release_cred(&lmin, &gssapi_client.creds);
-        free(gssapi_client.formattedname);
+	free(gssapi_client.formattedname);
 	explicit_bzero(&gssapi_client, sizeof(ssh_gssapi_client));
 	return 0;
 }

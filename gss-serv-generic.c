@@ -47,6 +47,7 @@
 #include "log.h"
 #include "misc.h"
 #include "servconf.h"
+#include "xmalloc.h"
 
 #include "ssh-gss.h"
 
@@ -85,17 +86,17 @@ ssh_gssapi_generic_isuser(ssh_gssapi_client *client, const char *username)
 
 	if (gss_localname(&minor, client->initiator_name, client->initial_mechoid,
 			  &localname) != GSS_S_COMPLETE) {
-            debug("Could not determine client principal's local name; "
-                  "not storing delegated credentials");
+	    debug("Could not determine client principal's local name; "
+		  "not storing delegated credentials");
 	    return 0;
-        }
+	}
 
 	ret = strlen(username) == localname.length &&
 	    strncmp(username, localname.value, localname.length) == 0;
 	gss_release_buffer(&minor, &localname);
-        debug("Client principal's localname %c= requested username; "
-              "%sstoring delegated credentials",
-              ret ? '=' : '!', ret ? "" : "not ");
+	debug("Client principal's localname %c= requested username; "
+	      "%sstoring delegated credentials",
+	      ret ? '=' : '!', ret ? "" : "not ");
 	return ret;
 }
 
@@ -107,6 +108,9 @@ void
 ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 {
 	OM_uint32 major, minor;
+	gss_key_value_element_desc *cred_store_kvs = NULL;
+	gss_key_value_set_desc cred_store;
+	size_t i;
 
 	if (client->creds == GSS_C_NO_CREDENTIAL) {
 		debug("No delegated credentials to store");
@@ -114,16 +118,71 @@ ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 	}
 
 	/*
-	 * XXX Add support for configuration of GSS cred store in sshd_config,
-	 * then use gss_store_cred_into2(), then record the store info in
-	 * client->store.
+	 * Construct a "cred store" specification.
+	 *
+	 * Heimdal supports:
+	 *
+	 *  - "unique_ccache_type" -> one of "FILE", "DIR", ...
+	 *  - "ccache" -> name (including %{tokens})
+	 *  - "username" -> username
+	 *  - "appname" -> "sshd", "kinit", whatever
+	 *
+	 * We'll always set "username" and "appname", and allow users to
+	 * configure additional key/value pairs.
+	 *
+	 * Setting "unique_ccache_type" should cause a unique (as in
+	 * mkostemp()) ccache of the given type to be used.
+	 *
+	 * In all (success) cases we expect KRB5CCNAME to get communicated
+	 * back, and we'll set it.
+	 *
+	 * With Heimdal we'll expect the default to be
+	 *
+	 *	FILE:/tmp/krb5cc_%{uid}+%{princ}
+	 *
+	 * with substitutions in %{princ}, or, if the creds' principal is "the
+	 * best principal for the user", then
+	 *
+	 *	FILE:/tmp/krb5cc_%{uid}
+	 *
+	 * (which is essentially the universal default for all Kerberos
+	 * implementations.
 	 */
-        client->store.env = GSS_C_NO_BUFFER_SET;
-        major = gss_store_cred_into2(&minor, client->creds, GSS_C_INITIATE,
+	cred_store_kvs = xcalloc(2 + options.num_gss_cred_store_keyvalues,
+				 sizeof(cred_store_kvs[0]));
+
+	/* "appname" is for, e.g., selecting appdefaults in krb5 mechs */
+	cred_store_kvs[0].key = "appname";
+	cred_store_kvs[0].value = "sshd";
+	/* "username" is for, e.g., selecting a best ccache in krb5 mechs */
+	cred_store_kvs[1].key = "username";
+	cred_store_kvs[1].value = client->store.owner->pw_name;
+	/* The rest are configurable and do not override the above two */
+	for (i = 2; i < 2 + options.num_gss_cred_store_keyvalues; i++) {
+	    char *key;
+	    char *p;
+
+	    key = xstrdup(options.gss_cred_store_keyvalues[i]);
+	    cred_store_kvs[i].key = key;
+	    if ((p = strchr(key, '='))) {
+		*(p++) = '\0';
+		cred_store_kvs[i].value = p;
+	    } else {
+		cred_store_kvs[i].value = "";
+	    }
+	}
+	cred_store.count = 2 + options.num_gss_cred_store_keyvalues;
+	cred_store.elements = cred_store_kvs;
+
+	client->store.env = GSS_C_NO_BUFFER_SET;
+	major = gss_store_cred_into2(&minor, client->creds, GSS_C_INITIATE,
 				     client->mechoid,
 				     GSS_C_STORE_CRED_SET_PROCESS,
-				     GSS_C_NO_CRED_STORE, NULL, NULL,
+				     &cred_store, NULL, NULL,
 				     &client->store.env);
+	for (i = 0; i < options.num_gss_cred_store_keyvalues; i++)
+	    free((void *)(uintptr_t)cred_store_kvs[i + 2].key);
+	free(cred_store_kvs);
 	if (major != GSS_S_COMPLETE) {
 		char *s;
 
@@ -143,8 +202,8 @@ ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 		size_t i;
 
 		for (i = 0; i < client->store.env->count; i++) {
-                        debug("Setting env var for delegated creds stored: %s",
-                              (char *)client->store.env->elements[i].value);
+			debug("Setting env var for delegated creds stored: %s",
+			      (char *)client->store.env->elements[i].value);
 			do_pam_putenv(client->store.env->elements[i].value);
 		}
 	}
@@ -153,7 +212,7 @@ ssh_gssapi_generic_storecreds(ssh_gssapi_client *client)
 
 int
 ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *store,
-    ssh_gssapi_client *client)
+			       ssh_gssapi_client *client)
 {
 	OM_uint32 major, minor;
 	gss_name_t def_cred_name = GSS_C_NO_NAME;
@@ -190,7 +249,7 @@ ssh_gssapi_generic_formatname(ssh_gssapi_client *client)
 		return NULL;
 	if (asprintf(&s, "%s:%.*s", client->mech->name,
 		     (int)client->displayname.length,
-                     (char *)client->displayname.value) == -1)
+		     (char *)client->displayname.value) == -1)
 		s = NULL;
 	client->formattedname = s;
 	return s;
