@@ -1,3 +1,9 @@
+openssh (1001:8.0p1+ts9) unstable; urgency=medium
+
+  * Fix segfault when GSS userauth not used (e.g., publickey)
+
+ -- Nico Williams <nico@twosigma.com>  Fri, 22 May 2020 18:27:19 +0000
+
 openssh (1001:8.0p1+ts8) unstable; urgency=medium
 
   * Update to the latest Heimdal.
