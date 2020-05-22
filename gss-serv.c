@@ -368,6 +368,9 @@ ssh_gssapi_do_child(char ***envp, u_int *envsizep)
 {
 	const char *s = gssapi_client.formattedname;
 
+	if (gssapi_client.mech == NULL)
+		return;
+
 	if (s == NULL && gssapi_client.mech->formatname != NULL) {
 		(void) gssapi_client.mech->formatname(&gssapi_client);
 		if ((s = gssapi_client.formattedname) == NULL)

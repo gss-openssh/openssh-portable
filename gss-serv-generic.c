@@ -217,6 +217,12 @@ ssh_gssapi_generic_updatecreds(ssh_gssapi_ccache *store,
 	OM_uint32 major, minor;
 	gss_name_t def_cred_name = GSS_C_NO_NAME;
 
+	if (client == NULL || client->cgname == GSS_C_NO_NAME) {
+		debug("Not storing delegated credentials in rekey "
+		      "because initial key exchange was not GSS kex");
+		return 0;
+	}
+
 	major = gss_inquire_cred_by_mech(&minor, GSS_C_NO_CREDENTIAL,
 					 &client->mech->oid, &def_cred_name,
 					 NULL, NULL, NULL);
